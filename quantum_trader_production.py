@@ -136,7 +136,7 @@ class HeartbeatTrader:
         """Loop principale con recovery integrata"""
         self.heartbeat("START HEARTBEAT TRADER")
         cycle_count = 0
-        max_cycles = 20
+        max_cycles = 50
         
         while cycle_count < max_cycles:
             try:
