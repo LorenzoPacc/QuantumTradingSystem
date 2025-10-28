@@ -12,3 +12,8 @@ production.log
 .idea/
 *.tmp
 temp/
+api_keys.py
+config_secret.py
+*.key
+private/
+venv/
