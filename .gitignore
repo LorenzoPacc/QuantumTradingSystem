@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+*.log
+venv/
+.DS_Store
+*.tar.gz
+backup/
+trader.pid
+production.log
+*.swp
+.vscode/
+.idea/
+*.tmp
+temp/

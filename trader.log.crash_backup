@@ -1,0 +1,77 @@
+nohup: ignoring input
+2025-10-24 22:18:18,937 - QuantumTraderFinal - INFO - ✅ Database final inizializzato
+🤖 ML Confidence Boost attivato
+
+================================================================================
+🎯 QUANTUM TRADER ULTIMATE FINAL - VERSIONE COMPLETA
+================================================================================
+✅ Trading 100% REALE su Binance
+✅ Macro data REALI (DXY, Gold)
+✅ Retry logic per API calls
+✅ Telegram alerts integration
+✅ Backtesting con dati REALI
+✅ Config Hot-Reload
+✅ Emergency Stop Mechanism
+✅ ML Confidence Boost
+✅ Adaptive Position Sizing
+================================================================================
+2025-10-24 22:18:18,937 - QuantumTraderFinal - WARNING - Telegram credentials non configurate
+2025-10-24 22:18:19,300 - QuantumTraderFinal - INFO - 💰 Balance USDT: $10,000.40
+
+================================================================================
+🚀 QUANTUM TRADER ULTIMATE FINAL - AVVIO
+================================================================================
+💰 Balance: $10,000.40
+🎯 Symbols: BTCUSDT, ETHUSDT, SOLUSDT
+⚡ Timeframes: ['1h', '4h', '1d']
+🎯 Min Confluence: 2.0/4.0
+🎯 Min Confidence: 60.0%
+⚠️  Risk/Trade: 2.0%
+🛡️  TP: +3.0%
+🛡️  SL: -1.5%
+🚨 Emergency Stop: $-1000.0
+🤖 ML Boost: ATTIVO
+🎯 Adaptive Sizing: ATTIVO
+🔧 Config Hot-Reload: OGNI 5 MINUTI
+================================================================================
+
+2025-10-24 22:18:19,303 - QuantumTraderFinal - INFO - ✅ Dashboard final avviata: http://0.0.0.0:8000
+2025-10-24 22:18:19,305 - QuantumTraderFinal - WARNING - Telegram credentials non configurate
+2025-10-24 22:18:19,696 - QuantumTraderFinal - INFO - 💰 Balance USDT: $10,000.40
+
+[2025-10-24 22:18:19] 🔍 ANALISI CICLO #1
+2025-10-24 22:18:19,697 - QuantumTraderFinal - INFO - 📊 Fetching DXY data...
+2025-10-24 22:18:21,285 - QuantumTraderFinal - INFO - ✅ DXY data ottenuto
+2025-10-24 22:18:21,285 - QuantumTraderFinal - INFO - 📊 Fetching Gold data...
+2025-10-24 22:18:21,512 - QuantumTraderFinal - INFO - ✅ Gold data ottenuto
+📊 BTCUSDT: $110,709.13 
+   Confluence: 1.69/4.0 | Confidence: 67%
+   Signal: HOLD | Segnali contrastanti: BUY(0) SELL(0)
+📊 ETHUSDT: $3,933.31 
+   Confluence: 1.71/4.0 | Confidence: 67%
+   Signal: HOLD | Segnali contrastanti: BUY(0) SELL(0)
+📊 SOLUSDT: $193.57 
+   Confluence: 1.85/4.0 | Confidence: 68%
+   Signal: HOLD | Segnali contrastanti: BUY(0) SELL(0)
+2025-10-24 22:18:26,383 - QuantumTraderFinal - INFO - 💰 Balance USDT: $10,000.40
+
+📊 STATO: Trade: 0 | Analisi: 1 | Balance: $10,000.40
+🌐 Dashboard: http://localhost:8000 | Emergency: ✅ | ML: 🤖
+⏰ Prossima analisi tra 5 minuti...
+2025-10-24 22:23:26,807 - QuantumTraderFinal - INFO - 💰 Balance USDT: $10,000.40
+
+[2025-10-24 22:23:26] 🔍 ANALISI CICLO #2
+2025-10-24 22:23:26,810 - QuantumTraderFinal - INFO - 📊 Fetching DXY data...
+2025-10-24 22:23:27,069 - QuantumTraderFinal - INFO - ✅ DXY data ottenuto
+2025-10-24 22:23:27,070 - QuantumTraderFinal - INFO - 📊 Fetching Gold data...
+2025-10-24 22:23:27,308 - QuantumTraderFinal - INFO - ✅ Gold data ottenuto
+📊 BTCUSDT: $110,771.22 
+   Confluence: 1.69/4.0 | Confidence: 67%
+   Signal: HOLD | Segnali contrastanti: BUY(0) SELL(0)
+📊 ETHUSDT: $3,940.54 
+   Confluence: 1.71/4.0 | Confidence: 67%
+   Signal: HOLD | Segnali contrastanti: BUY(0) SELL(0)
+📊 SOLUSDT: $193.81 
+   Confluence: 1.85/4.0 | Confidence: 68%
+   Signal: HOLD | Segnali contrastanti: BUY(0) SELL(0)
+2025-10-24 22:23:32,271 - QuantumTraderFinal - INFO - 💰 Balance USDT: $10,000.40

@@ -1,0 +1,26 @@
+{
+  "trading": {
+    "enabled": true,
+    "risk_per_trade": 0.3,
+    "max_positions": 1,
+    "min_balance": 10,
+    "take_profit": 1.5,
+    "stop_loss": 0.8,
+    "max_trades_per_day": 2
+  },
+  "symbols": [
+    "ETHUSDT"
+  ],
+  "timeframes": [
+    "1h",
+    "4h"
+  ],
+  "confluence": {
+    "min_confluence": 2.0,
+    "min_confidence": 70
+  },
+  "monitoring": {
+    "dashboard_port": 8001,
+    "update_interval": 300
+  }
+}
