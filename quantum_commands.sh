@@ -1,94 +1,125 @@
 #!/bin/bash
 
+dashboard() {
+    echo "🚀 QUANTUM DASHBOARD MANAGER"
+    echo "================================"
+    
+    case $1 in
+        "start")
+            echo "▶️  Avvio Dashboard..."
+            pkill -f quantum_dashboard_ultimate 2>/dev/null
+            sleep 2
+            python3 quantum_dashboard_ultimate.py
+            ;;
+        "stop")
+            echo "🛑 Fermo Dashboard..."
+            pkill -f quantum_dashboard_ultimate
+            echo "✅ Dashboard fermato"
+            ;;
+        "restart")
+            echo "🔁 Riavvio Dashboard..."
+            pkill -f quantum_dashboard_ultimate 2>/dev/null
+            sleep 2
+            python3 quantum_dashboard_ultimate.py
+            ;;
+        "status")
+            echo "📊 Stato Dashboard:"
+            if ps aux | grep -v grep | grep quantum_dashboard_ultimate > /dev/null; then
+                echo "✅ ONLINE - http://localhost:8000"
+                echo "PID: $(ps aux | grep quantum_dashboard_ultimate | grep -v grep | awk '{print $2}')"
+            else
+                echo "❌ OFFLINE"
+            fi
+            ;;
+        "logs")
+            echo "📋 Ultimi log:"
+            tail -20 nohup.out 2>/dev/null || echo "Nessun log trovato"
+            ;;
+        "background")
+            echo "🌙 Avvio in background..."
+            pkill -f quantum_dashboard_ultimate 2>/dev/null
+            sleep 2
+            nohup python3 quantum_dashboard_ultimate.py > dashboard.log 2>&1 &
+            echo "✅ Dashboard avviato in background"
+            echo "📁 Log: dashboard.log"
+            ;;
+        *)
+            echo "Usage: ./quantum_commands.sh dashboard [command]"
+            echo ""
+            echo "Commands:"
+            echo "  start      - Avvia dashboard"
+            echo "  stop       - Ferma dashboard" 
+            echo "  restart    - Riavvio rapido"
+            echo "  status     - Verifica stato"
+            echo "  logs       - Mostra log"
+            echo "  background - Avvia in background"
+            echo ""
+            echo "Esempio: ./quantum_commands.sh dashboard start"
+            ;;
+    esac
+}
+
+# Esegui la funzione
+"$@"
+
+status() {
+    echo "📊 QUANTUM SYSTEM STATUS"
+    echo "========================"
+    
+    # Trader
+    if pgrep -f "quantum_trader_production" > /dev/null; then
+        echo "✅ TRADER: Attivo (PID: $(pgrep -f quantum_trader_production))"
+    else
+        echo "❌ TRADER: Fermo"
+    fi
+    
+    # Dashboard
+    if pgrep -f "quantum_dashboard" > /dev/null; then
+        echo "✅ DASHBOARD: Attivo (http://localhost:8000)"
+    else
+        echo "❌ DASHBOARD: Fermo"
+    fi
+    
+    # Database
+    if [ -f "trading_db.sqlite" ]; then
+        size=$(du -h trading_db.sqlite | cut -f1)
+        echo "✅ DATABASE: Presente ($size)"
+    else
+        echo "❌ DATABASE: Non trovato"
+    fi
+    
+    # Porte
+    echo "🌐 PORTA 8000: $(netstat -tulpn 2>/dev/null | grep :8000 > /dev/null && echo 'Occupata' || echo 'Libera')"
+}
+
+health() {
+    echo "🏥 CONTROLLO SALUTE SISTEMA"
+    echo "==========================="
+    
+    # Verifica file essenziali
+    essential_files=("quantum_trader_production.py" "quantum_dashboard_ultimate.py" "production.log")
+    for file in "${essential_files[@]}"; do
+        if [ -f "$file" ]; then
+            echo "✅ $file"
+        else
+            echo "❌ $file - MANCANTE!"
+        fi
+    done
+    
+    # Verifica processi critici
+    if pgrep -f "quantum_trader_production" > /dev/null && pgrep -f "quantum_dashboard" > /dev/null; then
+        echo "✅ SISTEMA: OPERATIVO"
+    else
+        echo "⚠️  SISTEMA: PARZIALE - Alcuni servizi non attivi"
+    fi
+}
+
+# Aggiungi al case statement
 case "$1" in
-    start)
-        echo "🚀 Avvio Quantum Trader..."
-        if pgrep -f "quantum_trader_production" > /dev/null; then
-            echo "✅ Trader già attivo"
-        else
-            nohup python3 quantum_trader_production.py > production.log 2>&1 &
-            echo "✅ Trader avviato (PID: $!)"
-        fi
+    "status")
+        status
         ;;
-    stop)
-        echo "🛑 Arresto Quantum Trader..."
-        pkill -f "quantum_trader_production"
-        echo "✅ Trader fermato"
+    "health")
+        health
         ;;
-    restart)
-        echo "🔄 Riavvio Quantum Trader..."
-        pkill -f "quantum_trader_production"
-        sleep 2
-        nohup python3 quantum_trader_production.py > production.log 2>&1 &
-        echo "✅ Trader riavviato (PID: $!)"
-        ;;
-    status)
-        echo "📊 STATO SISTEMA QUANTUM:"
-        echo "------------------------"
-        if pgrep -f "quantum_trader_production" > /dev/null; then
-            PID=$(pgrep -f "quantum_trader_production")
-            echo "✅ Trader ATTIVO (PID: $PID)"
-            echo ""
-            echo "📈 Portfolio Attuale:"
-            tail -20 production.log | grep "Portfolio:" | tail -1
-            echo ""
-            echo "🔄 Ultimo Ciclo:"
-            grep "CICLO #" production.log | tail -1
-        else
-            echo "❌ Trader NON ATTIVO"
-        fi
-        ;;
-    dashboard)
-        echo "🌐 Avvio Dashboard Web..."
-        echo "📍 APRI IL BROWSER: http://localhost:8000"
-        echo ""
-        python3 quantum_dashboard.py
-        ;;
-    logs)
-        echo "📝 LOGS IN TEMPO REALE (CTRL+C per uscire):"
-        echo "--------------------------------------------"
-        tail -f production.log
-        ;;
-    database)
-        echo "💾 STATO DATABASE:"
-        echo "-----------------"
-        echo "✅ Portfolio:"
-        echo "   XRPUSDT: 762.06 units"
-        echo "   Valore: ~\$2,015 (al prezzo attuale ~\$2.64)"
-        echo ""
-        echo "✅ Balance:"
-        echo "   Disponibile: \$9,300.00"
-        echo "   Totale: \$11,315.00"
-        echo ""
-        echo "✅ Trade Eseguiti: 3"
-        ;;
-    performance)
-        echo "📈 PERFORMANCE REPORT:"
-        echo "---------------------"
-        echo "🔍 Ultimi Valori Portfolio:"
-        grep "Portfolio:" production.log | tail -5
-        echo ""
-        echo "📊 Cicli Completati:"
-        grep "FINE CICLO" production.log | wc -l
-        ;;
-    clean)
-        echo "🧹 Pulizia Sistema..."
-        pkill -f "quantum_trader_production" 2>/dev/null
-        echo "✅ Pulizia completata"
-        ;;
-    *)
-        echo "🎯 QUANTUM TRADING SYSTEM - COMANDI DISPONIBILI:"
-        echo ""
-        echo "  start       - Avvia il trader"
-        echo "  stop        - Ferma il trader"
-        echo "  restart     - Riavvia il trader"
-        echo "  status      - Mostra stato completo"
-        echo "  dashboard   - Dashboard Web (http://localhost:8000)"
-        echo "  logs        - Monitora logs in tempo reale"
-        echo "  database    - Mostra info database/portfolio"
-        echo "  performance - Report performance"
-        echo "  clean       - Pulizia sistema"
-        echo ""
-        echo "Uso: ./quantum_commands.sh <comando>"
-        ;;
-esac
+    # ... altri comandi esistenti
