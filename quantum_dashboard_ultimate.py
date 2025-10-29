@@ -836,14 +836,28 @@ def get_portfolio_value():
 
 def get_current_cycle():
     try:
-        with open('production.log', 'r') as f:
-            for line in reversed(f.readlines()):
-                if 'CICLO #' in line:
-                    cycle = line.split('CICLO #')[-1].split('/')[0].strip()
-                    return cycle
+        # Prima cerca nei processi attivi
+        import subprocess
+        result = subprocess.run(['pgrep', '-f', 'quantum_trader_production'], 
+                              capture_output=True, text=True)
+        if result.returncode == 0:
+            # Trader è attivo, leggi l'ultimo ciclo dal log
+            if os.path.exists('production.log'):
+                with open('production.log', 'r') as f:
+                    lines = f.readlines()
+                    for line in reversed(lines):
+                        if 'CICLO #' in line and 'INIZIO' in line:
+                            cycle = line.split('CICLO #')[-1].split('/')[0].strip()
+                            return cycle
+                        if 'CICLO #' in line and 'FINE' in line:
+                            cycle = line.split('CICLO #')[-1].split('/')[0].strip()
+                            return str(int(cycle) + 1)  # Prossimo ciclo
+        else:
+            # Trader non attivo, mostra 50/50 (completato)
+            return "50"
     except:
         pass
-    return "5"
+    return "1"  # Default al primo ciclo
 
 def get_trader_pid():
     try:

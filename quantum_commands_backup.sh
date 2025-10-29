@@ -47,26 +47,13 @@ case "$1" in
         fi
         ;;
     "performance")
-        echo "📊 PERFORMANCE REPORT COMPLETO:"
-        echo "================================"
-        if [ -f "production.log" ] && [ -s "production.log" ]; then
-            echo "💰 PORTAFOGLIO ATTUALE:"
-            grep "Portfolio:" production.log | tail -1
-            echo ""
-            echo "💸 BALANCE LIQUIDO:"
-            grep "Balance:" production.log | tail -1
-            echo ""
-            echo "🔄 ULTIMI CICLI:"
-            grep -E "(CICLO #|FINE CICLO)" production.log | tail -3
-            echo ""
-            echo "📈 DECISIONI TRADING:"
-            grep -E "(HOLD|BUY|SELL) .*Score:" production.log | tail -6
-            echo ""
-            echo "🛡️ STATO PROTEZIONI:"
-            grep -E "(bloccato|protection)" production.log | tail -2
+        echo "📊 PERFORMANCE REPORT:"
+        echo "---------------------"
+        if [ -f "production.log" ]; then
+            echo "Ultime operazioni:"
+            tail -20 production.log | grep -E "(Portfolio:|CICLO|BUY|SELL)" || echo "Nessuna operazione recente"
         else
-            echo "📝 Log attivo - Trader in esecuzione"
-            echo "💡 Il report si popolerà al prossimo ciclo"
+            echo "Nessun dato performance disponibile"
         fi
         ;;
     "database")
@@ -116,7 +103,7 @@ case "$1" in
         echo "  dashboard   - Avvia dashboard"
         echo "  status      - Stato sistema"
         echo "  logs        - Logs in tempo reale"
-        echo "  performance - Report performance COMPLETO"
+        echo "  performance - Report performance"
         echo "  database    - Info database"
         echo "  clean       - Pulizia sistema"
         echo "  backup      - Backup su GitHub"

@@ -1,0 +1,122 @@
+[1mdiff --git a/quantum_trader_production.py b/quantum_trader_production.py[m
+[1mindex dc43d2c..bd38788 100644[m
+[1m--- a/quantum_trader_production.py[m
+[1m+++ b/quantum_trader_production.py[m
+[36m@@ -14,7 +14,11 @@[m [mimport numpy as np[m
+ [m
+ logging.basicConfig([m
+     level=logging.INFO,[m
+[31m-    format='%(asctime)s - %(levelname)s - HEARTBEAT - %(message)s'[m
+[32m+[m[32m    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',[m
+[32m+[m[32m    handlers=[[m
+[32m+[m[32m        logging.FileHandler('production.log', mode='a', encoding='utf-8'),[m
+[32m+[m[32m        logging.StreamHandler()[m
+[32m+[m[32m    ][m
+ )[m
+ logger = logging.getLogger("QuantumHeartbeat")[m
+ [m
+[36m@@ -64,25 +68,100 @@[m [mclass HeartbeatTrader:[m
+             return 0.0[m
+ [m
+     def analyze_macro(self) -> tuple:[m
+[32m+[m[32m        """Analisi macro basata su prezzo BTC reale"""[m
+         self.heartbeat("Analisi macro")[m
+         try:[m
+             btc_price = self.get_real_price("BTCUSDT")[m
+[31m-            score = 0.87  # Semplicificato per test[m
+[32m+[m[41m            [m
+[32m+[m[32m            # Score basato sul prezzo BTC[m
+[32m+[m[32m            if btc_price > 100000:[m
+[32m+[m[32m                score = 0.85  # Molto bullish[m
+[32m+[m[32m            elif btc_price > 80000:[m
+[32m+[m[32m                score = 0.75  # Bullish[m
+[32m+[m[32m            elif btc_price > 60000:[m
+[32m+[m[32m                score = 0.65  # Neutrale[m
+[32m+[m[32m            else:[m
+[32m+[m[32m                score = 0.50  # Cautela[m
+[32m+[m[41m            [m
+             return score, f"BTC ${btc_price:,.0f}"[m
+         except:[m
+             return 0.5, "Errore macro"[m
+ [m
+     def analyze_price_action(self, symbol: str) -> tuple:[m
+[32m+[m[32m        """Analisi price action con dati reali da Binance"""[m
+         self.heartbeat(f"Price action {symbol}")[m
+[31m-        return 0.6, "Price action test"[m
+[32m+[m[32m        try:[m
+[32m+[m[32m            import requests[m
+[32m+[m[32m            url = f"{self.base_url}/api/v3/ticker/24hr"[m
+[32m+[m[32m            response = requests.get(url, params={'symbol': symbol}, timeout=5)[m
+[32m+[m[41m            [m
+[32m+[m[32m            if response.status_code == 200:[m
+[32m+[m[32m                data = response.json()[m
+[32m+[m[32m                change_24h = float(data['priceChangePercent'])[m
+[32m+[m[41m                [m
+[32m+[m[32m                # Calcola score basato su momentum[m
+[32m+[m[32m                if change_24h > 5:[m
+[32m+[m[32m                    score = 0.9[m
+[32m+[m[32m                elif change_24h > 2:[m
+[32m+[m[32m                    score = 0.75[m
+[32m+[m[32m                elif change_24h > 0:[m
+[32m+[m[32m                    score = 0.6[m
+[32m+[m[32m                elif change_24h > -2:[m
+[32m+[m[32m                    score = 0.5[m
+[32m+[m[32m                elif change_24h > -5:[m
+[32m+[m[32m                    score = 0.4[m
+[32m+[m[32m                else:[m
+[32m+[m[32m                    score = 0.3[m
+[32m+[m[41m                [m
+[32m+[m[32m                return score, f"24h: {change_24h:+.2f}%"[m
+[32m+[m[32m            else:[m
+[32m+[m[32m                return 0.5, "API error"[m
+[32m+[m[41m                [m
+[32m+[m[32m        except Exception as e:[m
+[32m+[m[32m            return 0.5, f"Error: {str(e)[:20]}"[m
+ [m
+     def analyze_onchain(self, symbol: str) -> tuple:[m
+[32m+[m[32m        """Analisi on-chain semplificata"""[m
+         self.heartbeat(f"On-chain {symbol}")[m
+[31m-        return 0.5, "On-chain test"[m
+[32m+[m[32m        try:[m
+[32m+[m[32m            price = self.get_real_price(symbol)[m
+[32m+[m[41m            [m
+[32m+[m[32m            # Score basato sul prezzo (esempio semplificato)[m
+[32m+[m[32m            if symbol == "BTCUSDT":[m
+[32m+[m[32m                score = 0.7 if price > 100000 else 0.5[m
+[32m+[m[32m            elif symbol == "ETHUSDT":[m
+[32m+[m[32m                score = 0.65 if price > 3500 else 0.5[m
+[32m+[m[32m            elif symbol == "SOLUSDT":[m
+[32m+[m[32m                score = 0.6 if price > 150 else 0.5[m
+[32m+[m[32m            else:[m
+[32m+[m[32m                score = 0.55[m
+[32m+[m[41m            [m
+[32m+[m[32m            return score, "On-chain OK"[m
+[32m+[m[32m        except:[m
+[32m+[m[32m            return 0.5, "On-chain test"[m
+ [m
+     def analyze_cycles(self) -> tuple:[m
+[32m+[m[32m        """Analisi cicli con variazione temporale"""[m
+         self.heartbeat("Analisi cicli")[m
+[31m-        return 0.55, "556 giorni post-halving"[m
+[32m+[m[32m        try:[m
+[32m+[m[32m            # Halving BTC: Aprile 2024[m
+[32m+[m[32m            halving_date = datetime(2024, 4, 20)[m
+[32m+[m[32m            days_since = (datetime.now() - halving_date).days[m
+[32m+[m[41m            [m
+[32m+[m[32m            # Score basato sulla posizione nel ciclo[m
+[32m+[m[32m            if days_since < 365:[m
+[32m+[m[32m                score = 0.5 + (days_since / 365) * 0.2  # 0.5 -> 0.7[m
+[32m+[m[32m            elif days_since < 730:[m
+[32m+[m[32m                score = 0.7 + ((days_since - 365) / 365) * 0.2  # 0.7 -> 0.9[m
+[32m+[m[32m            elif days_since < 1095:[m
+[32m+[m[32m                score = 0.9 - ((days_since - 730) / 365) * 0.3  # 0.9 -> 0.6[m
+[32m+[m[32m            else:[m
+[32m+[m[32m                score = 0.6 - ((days_since - 1095) / 365) * 0.2  # 0.6 -> 0.4[m
+[32m+[m[41m            [m
+[32m+[m[32m            return round(score, 2), f"{days_since} giorni post-halving"[m
+[32m+[m[32m        except:[m
+[32m+[m[32m            return 0.55, "556 giorni post-halving"[m
+[32m+[m
+ [m
+     def calculate_confluence(self, symbol: str) -> dict:[m
+         self.heartbeat(f"Confluence {symbol}")[m
