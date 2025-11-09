@@ -1,0 +1,30 @@
+#!/bin/bash
+echo "🔍 ANALISI COMANDI - VECCHIO vs NUOVO SISTEMA"
+echo "============================================="
+echo ""
+
+echo "📊 COMANDI UTILI (MANTENERE):"
+echo "✅ ./quantum_commands.sh start    # Avvia il TUO nuovo sistema"
+echo "✅ ./quantum_commands.sh stop     # Ferma il TUO nuovo sistema" 
+echo "✅ ./quantum_commands.sh status   # Stato del TUO sistema"
+echo "✅ ./quantum_commands.sh logs     # Logs del TUO sistema"
+echo "✅ ./quantum_commands.sh clean    # Pulizia (sempre utile)"
+echo "✅ ./quantum_commands.sh backup   # Backup (importante)"
+
+echo ""
+echo "⚠️  COMANDI DA AGGIORNARE/MODIFICARE:"
+echo "🔄 ./quantum_commands.sh dashboard  # Da aggiornare per la TUA strategia"
+echo "🔄 ./quantum_commands.sh performance # Da adattare ai nuovi metrici"
+echo "🔄 ./quantum_commands.sh database   # Da riconfigurare per paper trading"
+
+echo ""
+echo "❌ COMANDI OBSOLETI (ELIMINARE):"
+echo "🗑️  ./quantum_commands.sh emergency # Non più necessario con paper trading"
+echo "   (Il paper trading non ha emergenze - sono soldi virtuali)"
+
+echo ""
+echo "🎯 NUOVI COMANDI DA AGGIUNGERE:"
+echo "➕ ./quantum_commands.sh analysis   # Analisi performance strategia"
+echo "➕ ./quantum_commands.sh optimize   # Ottimizzazione parametri"
+echo "➕ ./quantum_commands.sh report     # Report dettagliato"
+echo "➕ ./quantum_commands.sh real_mode  # Passa a trading reale"

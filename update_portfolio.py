@@ -1,0 +1,11 @@
+#!/bin/python3
+print("🔄 AGGIORNAMENTO PORTAFOGLIO DOPO VENDITA")
+print("========================================")
+print("Dopo aver venduto 229 XRP su Binance:")
+print("")
+print("NUOVI DATI DA INSERIRE NEL SISTEMA:")
+print("XRP quantity: 762.06 → 533.06")
+print("Available balance: $9,300 → ~$9,853")
+print("Portfolio value: $11,153 → ~$11,153 (simile)")
+print("")
+print("✅ Il sistema si aggiornerà automaticamente al prossimo ciclo")

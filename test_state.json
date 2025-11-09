@@ -1,0 +1,37 @@
+{
+  "balance": 105.0,
+  "initial_balance": 150.0,
+  "portfolio": {
+    "ADAUSDT": 45.203619909502265,
+    "MATICUSDT": 52.66209804955192
+  },
+  "orders_history": [
+    {
+      "orderId": 1000,
+      "symbol": "ADAUSDT",
+      "side": "BUY",
+      "type": "MARKET",
+      "quantity": 45.203619909502265,
+      "price": 0.5525,
+      "usdt_spent": 25.0,
+      "fee": 0.025,
+      "timestamp": "2025-11-03T22:52:40.985006",
+      "status": "FILLED (SIMULATED)"
+    },
+    {
+      "orderId": 1001,
+      "symbol": "MATICUSDT",
+      "side": "BUY",
+      "type": "MARKET",
+      "quantity": 52.66209804955192,
+      "price": 0.3794,
+      "usdt_spent": 20.0,
+      "fee": 0.02,
+      "timestamp": "2025-11-03T22:52:41.344017",
+      "status": "FILLED (SIMULATED)"
+    }
+  ],
+  "order_id": 1002,
+  "total_fees": 0.045,
+  "saved_at": "2025-11-03T22:52:41.692929"
+}

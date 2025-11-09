@@ -1,0 +1,30 @@
+🎯 DIVERSIFICAZIONE XRP - ISTRUZIONI MANUALI
+===========================================
+
+SITUAZIONE ATTUALE:
+- XRP quantità: 762.06
+- Prezzo: $2.4140
+- Valore XRP: $1,839.61
+- Peso portfolio: 16.5% (TROPPO ALTO!)
+
+AZIONE RICHIESTA:
+🔻 VENDERE 229 XRP per ridurre a 11.5%
+
+PASSAGGI BINANCE:
+1. Login Binance
+2. Spot Wallet → Trade
+3. Coppia: XRP/USDT  
+4. SELL: 229 XRP
+5. Tipo: MARKET
+6. Conferma
+
+EFFETTO ATTESO:
+- Cash generato: ~$553
+- Nuova quantità XRP: 533
+- Riduzione rischio: -5.0%
+- Portfolio più bilanciato
+
+DOPO LA VENDITA:
+- Aggiorna il sistema
+- Riavvia il trader
+- Monitora nuovo equilibrio

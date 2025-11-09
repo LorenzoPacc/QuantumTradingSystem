@@ -1,0 +1,193 @@
+
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quantum AI Trader - Dashboard Compatibile</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #0f0f23 0%, #1a1a2e 100%); color: #ffffff; min-height: 100vh; padding: 20px; }
+        .container { max-width: 1400px; margin: 0 auto; }
+        .header { text-align: center; margin-bottom: 30px; padding: 20px; background: rgba(255, 255, 255, 0.05); border-radius: 15px; backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        .header h1 { font-size: 2.5em; background: linear-gradient(45deg, #00ff88, #00ccff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 10px; }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-bottom: 30px; }
+        .card { background: rgba(255, 255, 255, 0.05); border-radius: 15px; padding: 20px; backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        .card h2 { color: #00ff88; margin-bottom: 15px; font-size: 1.3em; border-bottom: 2px solid #00ff88; padding-bottom: 5px; }
+        .stat-item { display: flex; justify-content: space-between; margin-bottom: 10px; padding: 8px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.1); }
+        .stat-value { font-weight: bold; color: #00ccff; }
+        .positive { color: #00ff88; } .negative { color: #ff4444; } .neutral { color: #ffaa00; }
+        .chart-container { background: rgba(255, 255, 255, 0.05); border-radius: 15px; padding: 20px; margin-bottom: 30px; height: 400px; }
+        .positions-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; }
+        .position-card { background: rgba(255, 255, 255, 0.03); border-radius: 10px; padding: 15px; border-left: 4px solid #00ff88; }
+        .position-card.negative { border-left-color: #ff4444; }
+        .refresh-info { text-align: center; margin-top: 20px; color: #888; font-size: 0.9em; }
+        .market-sentiment { display: inline-block; padding: 5px 15px; border-radius: 20px; font-weight: bold; margin-left: 10px; }
+        .sentiment-fear { background: #ff4444; color: white; } .sentiment-greed { background: #00ff88; color: black; } .sentiment-neutral { background: #ffaa00; color: black; }
+        .error-banner { position: fixed; top: 0; left: 0; right: 0; background: #ff4444; color: white; padding: 15px; text-align: center; z-index: 9999; font-weight: bold; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.7; } 100% { opacity: 1; } }
+        .loading { animation: pulse 1.5s infinite; }
+    </style>
+</head>
+<body>
+    <div id="errorBanner" style="display: none;"></div>
+    <div class="container">
+        <div class="header">
+            <h1>🤖 QUANTUM AI TRADER</h1>
+            <p>Dashboard Compatibile - Monitoraggio in Tempo Reale</p>
+            <div id="lastUpdate" class="refresh-info"></div>
+        </div>
+        
+        <div class="stats-grid">
+            <div class="card"><h2>📈 Performance</h2><div id="performanceStats"><div class="loading">Caricamento...</div></div></div>
+            <div class="card"><h2>💰 Portfolio</h2><div id="portfolioStats"><div class="loading">Caricamento...</div></div></div>
+            <div class="card"><h2>🌐 Mercato</h2><div id="marketStats"><div class="loading">Caricamento...</div></div></div>
+            <div class="card"><h2>🛡️ Risk Management</h2><div id="riskStats"><div class="loading">Caricamento...</div></div></div>
+        </div>
+        
+        <div class="chart-container">
+            <h2>📊 Performance Cumulative</h2>
+            <canvas id="performanceChart"></canvas>
+        </div>
+        
+        <div class="card"><h2>🎯 Posizioni Attive</h2><div id="activePositionsContainer" class="positions-grid"><div class="loading">Caricamento...</div></div></div>
+        <div class="card"><h2>🔄 Ultimi Trade</h2><div id="recentTradesContainer"><div class="loading">Caricamento...</div></div></div>
+    </div>
+
+    <script>
+        let updateInterval, chart, consecutiveErrors = 0;
+        const MAX_ERRORS = 3;
+        
+        function initializeChart() {
+            const ctx = document.getElementById('performanceChart').getContext('2d');
+            chart = new Chart(ctx, {
+                type: 'line', data: { labels: [], datasets: [{
+                    label: 'P&L Cumulative (%)', data: [], borderColor: '#00ff88',
+                    backgroundColor: 'rgba(0, 255, 136, 0.1)', borderWidth: 2, fill: true, tension: 0.4
+                }]}, options: { responsive: true, maintainAspectRatio: false }
+            });
+        }
+        
+        function updateDashboard() {
+            fetch('/api/stats').then(r => r.ok ? r.json() : Promise.reject('HTTP ' + r.status))
+            .then(data => {
+                consecutiveErrors = 0; hideErrorBanner();
+                updatePerformance(data.performance, data.cycle_count);
+                updatePortfolio(data.portfolio);
+                updateMarket(data.market_data);
+                updateRisk(data.risk_metrics);
+                updatePositions(data.portfolio.positions);
+                updateRecentTrades(data.recent_trades);
+                updateSystemInfo(data);
+                
+                if (data.performance?.chart_data) {
+                    chart.data.labels = data.performance.chart_data.labels;
+                    chart.data.datasets[0].data = data.performance.chart_data.cumulative;
+                    chart.update('none');
+                }
+                
+                document.getElementById('lastUpdate').textContent = 'Ultimo aggiornamento: ' + new Date().toLocaleTimeString();
+            })
+            .catch(e => {
+                console.error('Errore:', e); consecutiveErrors++;
+                showErrorBanner('Errore connessione: ' + e);
+                document.getElementById('systemStatus').textContent = 'OFFLINE';
+                document.getElementById('systemStatus').className = 'stat-value negative';
+                if (consecutiveErrors >= MAX_ERRORS) {
+                    showErrorBanner('❌ Connessione persa - Ricarica la pagina');
+                    clearInterval(updateInterval);
+                }
+            });
+        }
+        
+        function updatePerformance(perf, cycles) {
+            const container = document.getElementById('performanceStats');
+            if (perf?.error) { container.innerHTML = `<div class="stat-item"><span>Errore:</span><span class="negative">${perf.error}</span></div>`; return; }
+            container.innerHTML = `
+                <div class="stat-item"><span>Trade Totali:</span><span class="stat-value">${perf.total_trades || 0}</span></div>
+                <div class="stat-item"><span>P&L Medio:</span><span class="stat-value ${(perf.avg_pnl || 0) >= 0 ? 'positive' : 'negative'}">${perf.avg_pnl || 0}%</span></div>
+                <div class="stat-item"><span>Win Rate:</span><span class="stat-value">${perf.win_rate || 0}%</span></div>
+                <div class="stat-item"><span>Cicli Eseguiti:</span><span class="stat-value">${cycles || 0}</span></div>
+            `;
+        }
+        
+        function updatePortfolio(port) {
+            const container = document.getElementById('portfolioStats');
+            if (port?.error) { container.innerHTML = `<div class="stat-item"><span>Errore:</span><span class="negative">${port.error}</span></div>`; return; }
+            container.innerHTML = `
+                <div class="stat-item"><span>Valore Totale:</span><span class="stat-value">$${port.total_value || 0}</span></div>
+                <div class="stat-item"><span>Cash Disponibile:</span><span class="stat-value">$${port.cash || 0}</span></div>
+                <div class="stat-item"><span>Esposizione:</span><span class="stat-value">${port.exposure_pct || 0}%</span></div>
+                <div class="stat-item"><span>Posizioni Attive:</span><span class="stat-value">${port.position_count || 0}</span></div>
+            `;
+        }
+        
+        function updateMarket(market) {
+            const container = document.getElementById('marketStats');
+            if (market?.error) { container.innerHTML = `<div class="stat-item"><span>Errore:</span><span class="negative">${market.error}</span></div>`; return; }
+            const sentiment = market.market_sentiment || 'Neutral';
+            container.innerHTML = `
+                <div class="stat-item"><span>Fear & Greed:</span><span class="stat-value">${market.fear_greed || 0}</span></div>
+                <div class="stat-item"><span>Sentiment:</span><span class="market-sentiment sentiment-${sentiment.toLowerCase().includes('fear')?'fear':sentiment.toLowerCase().includes('greed')?'greed':'neutral'}">${sentiment}</span></div>
+                <div class="stat-item"><span>BTC Dominance:</span><span class="stat-value">${market.btc_dominance || 0}%</span></div>
+                <div class="stat-item"><span>Stato Sistema:</span><span class="stat-value positive" id="systemStatus">ONLINE</span></div>
+            `;
+        }
+        
+        function updateRisk(risk) {
+            const container = document.getElementById('riskStats');
+            if (risk?.error) { container.innerHTML = `<div class="stat-item"><span>Errore:</span><span class="negative">${risk.error}</span></div>`; return; }
+            container.innerHTML = `
+                <div class="stat-item"><span>Esposizione Attuale:</span><span class="stat-value">${risk.current_exposure || 0}%</span></div>
+                <div class="stat-item"><span>Esposizione Max:</span><span class="stat-value">${risk.max_exposure || 0}%</span></div>
+                <div class="stat-item"><span>Take Profit:</span><span class="stat-value">${risk.take_profit || 0}%</span></div>
+                <div class="stat-item"><span>Stop Loss:</span><span class="stat-value">${risk.stop_loss || 0}%</span></div>
+            `;
+        }
+        
+        function updatePositions(positions) {
+            const container = document.getElementById('activePositionsContainer');
+            if (!positions || positions.length === 0) { container.innerHTML = '<div class="position-card">Nessuna posizione attiva</div>'; return; }
+            container.innerHTML = positions.map(p => `
+                <div class="position-card ${(p.pnl_pct || 0) < 0 ? 'negative' : ''}">
+                    <div style="font-weight: bold; margin-bottom: 8px;">${p.symbol}</div>
+                    <div style="font-size: 0.9em;">
+                        <div>Quantità: ${p.quantity}</div><div>Entry: $${p.entry_price}</div>
+                        <div>Current: $${p.current_price}</div><div>Valore: $${p.value}</div>
+                        <div>P&L: <span class="${(p.pnl_pct || 0) >= 0 ? 'positive' : 'negative'}">${p.pnl_pct}%</span></div>
+                        <div>Giorni: ${p.holding_days}</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        function updateRecentTrades(trades) {
+            const container = document.getElementById('recentTradesContainer');
+            if (!trades || trades.length === 0) { container.innerHTML = '<div>Nessun trade recente</div>'; return; }
+            container.innerHTML = trades.map(t => `
+                <div style="border-bottom: 1px solid rgba(255,255,255,0.1); padding: 8px 0;">
+                    <strong>${t.timestamp}</strong> - ${t.symbol} - 
+                    <span class="${t.action === 'BUY' ? 'positive' : 'negative'}">${t.action}</span> - 
+                    $${t.amount} - ${t.reason}
+                </div>
+            `).join('');
+        }
+        
+        function updateSystemInfo(data) {
+            document.getElementById('systemStatus').textContent = data.system_status;
+            document.getElementById('systemStatus').className = 'stat-value ' + (data.system_status === 'ONLINE' ? 'positive' : 'negative');
+        }
+        
+        function showErrorBanner(msg) { const b = document.getElementById('errorBanner'); b.textContent = msg; b.className = 'error-banner'; b.style.display = 'block'; }
+        function hideErrorBanner() { document.getElementById('errorBanner').style.display = 'none'; }
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeChart();
+            updateDashboard();
+            updateInterval = setInterval(updateDashboard, 5000);
+        });
+    </script>
+</body>
+</html>
+    

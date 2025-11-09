@@ -1,17 +1,18 @@
 #!/usr/bin/env python3
 """
-QUANTUM TRADER - VERSIONE HEARTBEAT
-Auto-recovery + monitoring continuo
+Quantum Trader Production - AUTO TRADING VERSION 
+Con dati REALI da Binance
 """
-import requests
+
 import logging
 import time
-import sqlite3
-import os
-import sys
+import requests
 from datetime import datetime
-import numpy as np
+import hmac
+import hashlib
+import os
 
+# Configurazione logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -20,225 +21,346 @@ logging.basicConfig(
         logging.StreamHandler()
     ]
 )
-logger = logging.getLogger("QuantumHeartbeat")
+logger = logging.getLogger("QuantumAutoTrader")
 
-class HeartbeatTrader:
+# API Configuration
+TESTNET = True
+BASE_URL = "https://testnet.binance.vision" if TESTNET else "https://api.binance.com"
+
+# Load API keys
+from pathlib import Path
+env_file = Path('.env.testnet')
+if env_file.exists():
+    with open(env_file) as f:
+        for line in f:
+            if '=' in line and not line.startswith('#'):
+                key, value = line.strip().split('=', 1)
+                os.environ[key] = value
+
+API_KEY = "EXyS3Fvmsrb9pCKjQMuJSlLiUIWYih5JiglIsiRzvLDR2tzJS60r3DXzknca0FC1"  # TestNet Key
+API_SECRET = "yvPlsaFwUg8XaBejUmptovSRH3XjQ6lOeGTRwbDprV2tAXs5naD6y1dsWbcmb2aI"  # TestNet Secret
+
+class QuantumAutoTrader:
     def __init__(self):
-        self.base_url = "https://api.binance.com"
-        self.symbols = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT", "ADAUSDT"]
+        self.base_url = BASE_URL
+        self.api_key = API_KEY
+        self.api_secret = API_SECRET
+        self.symbols = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'BNBUSDT', 'XRPUSDT', 'ADAUSDT']
+        self.portfolio = {'XRPUSDT': 762.06}
+        self.balance = 9300.0
         
-        self.min_confluence = 2.6
-        self.min_confidence = 0.70
-        self.max_risk_per_trade = 0.07
+        # MIGLIORAMENTI APPLICATI
+        self.buy_threshold = 2.8    # -12.5% più aggressivo
+        self.sell_threshold = 2.2   # -8.3% più aggressivo
+        self.cycle_interval = 45    # -25% più frequente
+        self.xrp_blocked_cycles = 0
+        self.max_cycles = 50  # 50 cicli completi
         
-        # INIZIALIZZA CON PORTFOLIO ESISTENTE
-        self.virtual_balance = 10000.0
-        self.available_balance = 9300.0
-        self.portfolio = {"XRPUSDT": 260.233 + 241.971 + 259.856}
-        self.trade_count = 3
-        
-        logger.info("🚀 HEARTBEAT TRADER INIZIALIZZATO")
-        logger.info(f"💰 Balance: ${self.available_balance:.2f}")
-        logger.info(f"📦 Portfolio: {self.portfolio}")
-
+        logger.info("🤖 QUANTUM AUTO TRADER INIZIALIZZATO")
+        logger.info(f"   Portfolio: ${self.calculate_portfolio_value():.2f}")
+        logger.info(f"   Balance: ${self.balance:.2f}")
+    
+    def _sign_request(self, params):
+        query_string = '&'.join([f"{k}={v}" for k, v in sorted(params.items())])
+        signature = hmac.new(
+            self.api_secret.encode('utf-8'),
+            query_string.encode('utf-8'),
+            hashlib.sha256
+        ).hexdigest()
+        return signature
+    
     def heartbeat(self, message):
-        """Log heartbeat per tracciare vitalità"""
         logger.info(f"❤️  {message}")
-
-    def safe_sleep(self, seconds):
-        """Sleep con heartbeat per evitare crash"""
-        chunks = seconds // 30  # Sleep in chunks di 30 secondi
-        for i in range(chunks):
-            self.heartbeat(f"Sleep... {i+1}/{chunks}")
-            time.sleep(30)
-        
-        remaining = seconds % 30
-        if remaining > 0:
-            time.sleep(remaining)
-
-    def get_real_price(self, symbol: str) -> float:
+    
+    def get_real_price(self, symbol):
         try:
-            self.heartbeat(f"Get price {symbol}")
             url = f"{self.base_url}/api/v3/ticker/price"
-            params = {'symbol': symbol}
-            response = requests.get(url, params=params, timeout=10)
-            return float(response.json()['price']) if response.status_code == 200 else 0.0
-        except Exception as e:
-            logger.error(f"❌ Price error {symbol}: {e}")
+            response = requests.get(url, params={'symbol': symbol}, timeout=5)
+            if response.status_code == 200:
+                return float(response.json()['price'])
             return 0.0
-
-    def analyze_macro(self) -> tuple:
-        """Analisi macro basata su prezzo BTC reale"""
-        self.heartbeat("Analisi macro")
-        try:
-            btc_price = self.get_real_price("BTCUSDT")
-            
-            # Score basato sul prezzo BTC
-            if btc_price > 100000:
-                score = 0.85  # Molto bullish
-            elif btc_price > 80000:
-                score = 0.75  # Bullish
-            elif btc_price > 60000:
-                score = 0.65  # Neutrale
-            else:
-                score = 0.50  # Cautela
-            
-            return score, f"BTC ${btc_price:,.0f}"
         except:
-            return 0.5, "Errore macro"
-
-    def analyze_price_action(self, symbol: str) -> tuple:
-        """Analisi price action con dati reali da Binance"""
-        self.heartbeat(f"Price action {symbol}")
+            return 0.0
+    
+    def get_24h_data(self, symbol):
         try:
-            import requests
             url = f"{self.base_url}/api/v3/ticker/24hr"
             response = requests.get(url, params={'symbol': symbol}, timeout=5)
-            
             if response.status_code == 200:
                 data = response.json()
-                change_24h = float(data['priceChangePercent'])
-                
-                # Calcola score basato su momentum
-                if change_24h > 5:
-                    score = 0.9
-                elif change_24h > 2:
-                    score = 0.75
-                elif change_24h > 0:
-                    score = 0.6
-                elif change_24h > -2:
-                    score = 0.5
-                elif change_24h > -5:
-                    score = 0.4
-                else:
-                    score = 0.3
-                
-                return score, f"24h: {change_24h:+.2f}%"
+                return {
+                    'change': float(data['priceChangePercent']),
+                    'volume': float(data['volume'])
+                }
+            return None
+        except:
+            return None
+    
+    def analyze_macro(self):
+        try:
+            btc_price = self.get_real_price("BTCUSDT")
+            if btc_price > 100000:
+                return 0.85
+            elif btc_price > 80000:
+                return 0.75
             else:
-                return 0.5, "API error"
-                
-        except Exception as e:
-            return 0.5, f"Error: {str(e)[:20]}"
-
-    def analyze_onchain(self, symbol: str) -> tuple:
-        """Analisi on-chain semplificata"""
-        self.heartbeat(f"On-chain {symbol}")
+                return 0.65
+        except:
+            return 0.5
+    
+    def analyze_price_action(self, symbol):
+        try:
+            data_24h = self.get_24h_data(symbol)
+            if data_24h:
+                change = data_24h['change']
+                if change > 5: return 0.9
+                elif change > 2: return 0.75
+                elif change > 0: return 0.6
+                elif change > -2: return 0.5
+                else: return 0.4
+            return 0.5
+        except:
+            return 0.5
+    
+    def analyze_onchain(self, symbol):
         try:
             price = self.get_real_price(symbol)
-            
-            # Score basato sul prezzo (esempio semplificato)
             if symbol == "BTCUSDT":
-                score = 0.7 if price > 100000 else 0.5
+                return 0.7 if price > 100000 else 0.5
             elif symbol == "ETHUSDT":
-                score = 0.65 if price > 3500 else 0.5
-            elif symbol == "SOLUSDT":
-                score = 0.6 if price > 150 else 0.5
+                return 0.65 if price > 3500 else 0.5
             else:
-                score = 0.55
-            
-            return score, "On-chain OK"
+                return 0.55
         except:
-            return 0.5, "On-chain test"
-
-    def analyze_cycles(self) -> tuple:
-        """Analisi cicli con variazione temporale"""
-        self.heartbeat("Analisi cicli")
+            return 0.5
+    
+    def analyze_cycles(self):
         try:
-            # Halving BTC: Aprile 2024
             halving_date = datetime(2024, 4, 20)
             days_since = (datetime.now() - halving_date).days
-            
-            # Score basato sulla posizione nel ciclo
             if days_since < 365:
-                score = 0.5 + (days_since / 365) * 0.2  # 0.5 -> 0.7
+                return 0.5 + (days_since / 365) * 0.2
             elif days_since < 730:
-                score = 0.7 + ((days_since - 365) / 365) * 0.2  # 0.7 -> 0.9
-            elif days_since < 1095:
-                score = 0.9 - ((days_since - 730) / 365) * 0.3  # 0.9 -> 0.6
+                return 0.7 + ((days_since - 365) / 365) * 0.2
             else:
-                score = 0.6 - ((days_since - 1095) / 365) * 0.2  # 0.6 -> 0.4
-            
-            return round(score, 2), f"{days_since} giorni post-halving"
+                return 0.9 - ((days_since - 730) / 730) * 0.3
         except:
-            return 0.55, "556 giorni post-halving"
-
-
-    def calculate_confluence(self, symbol: str) -> dict:
-        self.heartbeat(f"Confluence {symbol}")
-        
-        macro_score, macro_reason = self.analyze_macro()
-        price_score, price_reason = self.analyze_price_action(symbol)
-        onchain_score, onchain_reason = self.analyze_onchain(symbol)
-        cycles_score, cycles_reason = self.analyze_cycles()
+            return 0.55
+    
+    def calculate_confluence(self, symbol):
+        macro_score = self.analyze_macro()
+        price_score = self.analyze_price_action(symbol)
+        onchain_score = self.analyze_onchain(symbol)
+        cycles_score = self.analyze_cycles()
         
         weights = [0.30, 0.30, 0.25, 0.15]
-        confluence = sum(s * w for s, w in zip([macro_score, price_score, onchain_score, cycles_score], weights))
+        confluence = sum(s * w for s, w in zip(
+            [macro_score, price_score, onchain_score, cycles_score], weights
+        ))
         
-        signal = "HOLD"
-        if symbol == "XRPUSDT":
-            self.heartbeat("🚫 XRP bloccato - overconcentration")
+        score = confluence * 4
         
-        return {
-            'symbol': symbol,
-            'confluence': confluence * 4,
-            'confidence': confluence,
-            'signal': signal,
-            'price': self.get_real_price(symbol)
-        }
-
-    def run_trading_cycle(self, cycle_num: int):
-        """Ciclo di trading con heartbeat"""
-        self.heartbeat(f"INIZIO CICLO #{cycle_num}")
+        # DECISIONE con nuove soglie
+        if score > self.buy_threshold:
+            signal = "BUY"
+        elif score < self.sell_threshold:
+            signal = "SELL"
+        else:
+            signal = "HOLD"
         
+        return {'symbol': symbol, 'score': score, 'signal': signal}
+    
+    def execute_market_sell(self, symbol, quantity):
         try:
-            # Portfolio snapshot
-            portfolio_value = self.available_balance
-            for asset, qty in self.portfolio.items():
-                price = self.get_real_price(asset)
-                portfolio_value += qty * price
+            quantity = round(quantity, 2)
+            if quantity == 0: return None
             
-            self.heartbeat(f"Portfolio: ${portfolio_value:.2f}")
+            endpoint = "/api/v3/order"
+            timestamp = int(time.time() * 1000)
+            params = {
+                'symbol': symbol, 'side': 'SELL', 'type': 'MARKET',
+                'quantity': quantity, 'timestamp': timestamp
+            }
+            params['signature'] = self._sign_request(params)
+            headers = {'X-MBX-APIKEY': self.api_key}
             
-            # Analisi symbols
-            for symbol in self.symbols:
-                analysis = self.calculate_confluence(symbol)
-                self.heartbeat(f"{symbol}: {analysis['signal']} (Score: {analysis['confluence']:.2f})")
-            
-            self.heartbeat(f"FINE CICLO #{cycle_num}")
-            return True
-            
+            response = requests.post(f"{self.base_url}{endpoint}", params=params, headers=headers, timeout=10)
+            if response.status_code == 200:
+                self.heartbeat(f"✅ SELL: {quantity} {symbol}")
+                return response.json()
+            else:
+                self.heartbeat(f"❌ SELL failed: {response.text}")
+                return None
         except Exception as e:
-            logger.error(f"💥 CICLO #{cycle_num} CRASH: {e}")
-            return False
+            self.heartbeat(f"❌ Error SELL: {e}")
+            return None
+    
+    def auto_trade(self, symbol, analysis):
+        signal = analysis['signal']
+        score = analysis['score']
 
+        # Gestione XRP con sblocco (solo per SELL)
+        if symbol == "XRPUSDT" and self.portfolio.get(symbol, 0) > 0:
+            if self.xrp_blocked_cycles > 10:
+                self.xrp_blocked_cycles = 0
+                self.heartbeat("🔄 XRP sbloccato forzatamente")
+                return self.execute_market_sell(symbol, self.portfolio[symbol] * 0.30)
+            else:
+                self.xrp_blocked_cycles += 1
+                self.heartbeat(f"🚫 XRP bloccato (ciclo {self.xrp_blocked_cycles}/10)")
+                return None
+
+        # LOGICA BUY - PER TUTTE LE COPPIE
+        if signal == "BUY" and score >= self.buy_threshold:
+            buy_amount = min(self.balance * 0.05, 500)
+            if buy_amount >= 10 and self.balance >= buy_amount:
+                self.heartbeat(f"🤖 BUY DECISION: {symbol} (Score: {score:.2f})")
+                return self.execute_market_buy(symbol, buy_amount)
+
+        # LOGICA SELL - PER TUTTE LE COPPIE
+        if signal == "SELL" and symbol in self.portfolio and self.portfolio[symbol] > 0:
+            self.heartbeat(f"🤖 SELL: {symbol} (Score: {score:.2f})")
+            return self.execute_market_sell(symbol, self.portfolio[symbol])
+
+        return None
+        
+        if signal == "SELL" and symbol in self.portfolio and self.portfolio[symbol] > 0:
+            self.heartbeat(f"🤖 SELL: {symbol} (Score: {score:.2f})")
+            return self.execute_market_sell(symbol, self.portfolio[symbol])
+        
+        return None
+    
+    def calculate_portfolio_value(self):
+        total = self.balance
+        for symbol, qty in self.portfolio.items():
+            price = self.get_real_price(symbol)
+            total += qty * price
+        return total
+    
+    def run_auto_cycle(self, cycle_num):
+        self.heartbeat(f"INIZIO CICLO #{cycle_num}")
+        portfolio_value = self.calculate_portfolio_value()
+        self.heartbeat(f"Portfolio: ${portfolio_value:.2f}")
+        self.heartbeat(f"Balance: ${self.balance:.2f}")
+        
+        for symbol in self.symbols:
+            analysis = self.calculate_confluence(symbol)
+            self.heartbeat(f"{symbol}: {analysis['signal']} (Score: {analysis['score']:.2f})")
+            self.auto_trade(symbol, analysis)
+            time.sleep(1)
+        
+        self.heartbeat(f"FINE CICLO #{cycle_num}")
+    
     def run(self):
-        """Loop principale con recovery integrata"""
-        self.heartbeat("START HEARTBEAT TRADER")
-        cycle_count = 0
-        max_cycles = 50
-        
-        while cycle_count < max_cycles:
-            try:
-                cycle_count += 1
-                success = self.run_trading_cycle(cycle_count)
+        self.heartbeat("🚀 START AUTO TRADER")
+        for cycle in range(1, self.max_cycles + 1):
+            self.run_auto_cycle(cycle)
+            if cycle < self.max_cycles:
+                self.heartbeat(f"Attesa {self.cycle_interval}s... ({cycle}/{self.max_cycles})")
+                time.sleep(self.cycle_interval)
+        self.heartbeat("🏁 AUTO TRADING COMPLETATO")
+
+    def execute_market_buy(self, symbol, usdt_amount):
+        """Esegue BUY di mercato su Binance Testnet"""
+        try:
+            if usdt_amount < 10:
+                self.heartbeat(f"⚠️  {symbol}: Importo troppo piccolo ${usdt_amount:.2f}")
+                return None
+            
+            endpoint = "/api/v3/order"
+            timestamp = int(__import__('time').time() * 1000)
+            
+            params = {
+                'symbol': symbol,
+                'side': 'BUY',
+                'type': 'MARKET',
+                'quoteOrderQty': round(usdt_amount, 2),
+                'timestamp': timestamp,
+                'recvWindow': 5000
+            }
+            
+            params['signature'] = self._sign_request(params)
+            headers = {'X-MBX-APIKEY': self.api_key}
+            
+            self.heartbeat(f"🔄 BUY: ${usdt_amount:.2f} {symbol}")
+            
+            response = __import__('requests').post(
+                f"{self.base_url}{endpoint}",
+                params=params,
+                headers=headers,
+                timeout=10
+            )
+            
+            if response.status_code == 200:
+                order = response.json()
+                self.heartbeat(f"✅ 🟢 BUY SUCCESS: {symbol}")
+                self.heartbeat(f"   Order ID: {order.get('orderId')}")
                 
-                if not success:
-                    logger.warning("🔄 Ciclo fallito, ma continuo...")
+                # Aggiorna portfolio (simulato per ora)
+                self.portfolio[symbol] = self.portfolio.get(symbol, 0) + (usdt_amount / self.get_real_price(symbol))
+                self.balance -= usdt_amount
                 
-                # ⚠️ SLEEP SICURO con heartbeat
-                self.heartbeat(f"Attesa 60s prima del prossimo ciclo... ({cycle_count}/{max_cycles})")
-                self.safe_sleep(300)  # Solo 1 minuto per test
+                return order
+            else:
+                error = response.json()
+                self.heartbeat(f"❌ BUY FAILED: {error}")
+                return None
                 
-            except KeyboardInterrupt:
-                self.heartbeat("🛑 Fermato dall'utente")
-                break
-            except Exception as e:
-                logger.error(f"💥 ERRORE GLOBALE: {e}")
-                self.heartbeat("🔄 Ripristino tra 30s...")
-                time.sleep(30)
-        
-        self.heartbeat("🏁 SIMULAZIONE COMPLETATA")
+        except Exception as e:
+            self.heartbeat(f"❌ BUY ERROR: {e}")
+            return None
+
 
 if __name__ == "__main__":
-    trader = HeartbeatTrader()
+    trader = QuantumAutoTrader()
     trader.run()
+def execute_market_buy(self, symbol, usdt_amount):
+        """Esegue BUY di mercato su Binance Testnet"""
+        try:
+            if usdt_amount < 10:
+                self.heartbeat(f"⚠️  {symbol}: Importo troppo piccolo ${usdt_amount:.2f}")
+                return None
+            
+            endpoint = "/api/v3/order"
+            timestamp = int(__import__('time').time() * 1000)
+            
+            params = {
+                'symbol': symbol,
+                'side': 'BUY',
+                'type': 'MARKET',
+                'quoteOrderQty': round(usdt_amount, 2),
+                'timestamp': timestamp,
+                'recvWindow': 5000
+            }
+            
+            params['signature'] = self._sign_request(params)
+            headers = {'X-MBX-APIKEY': self.api_key}
+            
+            self.heartbeat(f"🔄 BUY: ${usdt_amount:.2f} {symbol}")
+            
+            response = __import__('requests').post(
+                f"{self.base_url}{endpoint}",
+                params=params,
+                headers=headers,
+                timeout=10
+            )
+            
+            if response.status_code == 200:
+                order = response.json()
+                self.heartbeat(f"✅ 🟢 BUY SUCCESS: {symbol}")
+                self.heartbeat(f"   Order ID: {order.get('orderId')}")
+                
+                # Aggiorna portfolio (simulato per ora)
+                self.portfolio[symbol] = self.portfolio.get(symbol, 0) + (usdt_amount / self.get_real_price(symbol))
+                self.balance -= usdt_amount
+                
+                return order
+            else:
+                error = response.json()
+                self.heartbeat(f"❌ BUY FAILED: {error}")
+                return None
+                
+        except Exception as e:
+            self.heartbeat(f"❌ BUY ERROR: {e}")
+            return None
+

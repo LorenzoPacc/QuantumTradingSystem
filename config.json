@@ -1,0 +1,19 @@
+{
+  "binance": {
+    "api_key": "EXyS3Fvmsrb9pCKjQMuJSlLiUIWYih5JiglIsiRzvLDR2tzJS60r3DXzknca0FC1",
+    "api_secret": "yvPlsaFwUg8XaBejUmptovSRH3XjQ6lOeGTRwbDprV2tAXs5naD6y1dsWbcmb2aI",
+    "testnet": true
+  },
+  "trading": {
+    "max_cycles": 10,
+    "cycle_delay": 30,
+    "test_mode": true,
+    "trade_amount": 20,
+    "assets": ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT", "ADAUSDT"]
+  },
+  "risk_management": {
+    "max_position_size": 100,
+    "stop_loss": 0.02,
+    "take_profit": 0.05
+  }
+}
