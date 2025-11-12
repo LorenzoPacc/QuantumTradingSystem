@@ -1,5 +1,5 @@
 {
-  "cash_balance": 24.376469104665823,
+  "cash_balance": 14.78,
   "portfolio": {
     "BTCUSDT": {
       "quantity": 0.00044235939164377207,
@@ -25,7 +25,12 @@
       "quantity": 1.0401679351761253,
       "entry_price": 15.33,
       "total_cost": 15.95
+    },
+    "DOTUSDT": {
+      "quantity": 3.152585119798234,
+      "entry_price": 3.172,
+      "total_cost": 10.0
     }
   },
-  "cycle_count": 888
+  "cycle_count": 115
 }

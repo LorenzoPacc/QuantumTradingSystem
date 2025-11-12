@@ -1,0 +1,35 @@
+{
+  "cash_balance": 69.94667836308801,
+  "portfolio": {
+    "BTCUSDT": {
+      "quantity": 0.00044235939164377207,
+      "entry_price": 101727.24,
+      "total_cost": 45.0,
+      "entry_time": "2025-11-12T19:48:39.208430",
+      "migrated_from_v1": true
+    },
+    "SOLUSDT": {
+      "quantity": 0.27355014927269267,
+      "entry_price": 157.43,
+      "total_cost": 43.07,
+      "entry_time": "2025-11-12T19:48:39.208482",
+      "migrated_from_v1": true
+    },
+    "AVAXUSDT": {
+      "quantity": 1.5156189994216311,
+      "entry_price": 17.29,
+      "total_cost": 26.21,
+      "entry_time": "2025-11-12T19:48:39.208542",
+      "migrated_from_v1": true
+    },
+    "LINKUSDT": {
+      "quantity": 1.0401679351761253,
+      "entry_price": 15.33,
+      "total_cost": 15.95,
+      "entry_time": "2025-11-12T19:48:39.208598",
+      "migrated_from_v1": true
+    }
+  },
+  "cycle_count": 894,
+  "timestamp": "2025-11-12T20:52:50.222079"
+}
