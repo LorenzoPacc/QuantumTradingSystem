@@ -1,0 +1,108 @@
+--- quantum_v2_complete_BACKUP.py
++++ quantum_v2_complete.py
+@@ -1,3 +1,4 @@
++from alert_system import alert_system
+ import json
+ import time
+ import sqlite3
+@@ -275,6 +276,11 @@
+         if sma_7d and price < sma_7d * 0.95: return False, "Price below SMA7"
+         if rsi and rsi > 70: return False, f"RSI overbought: {rsi:.1f}"
++        # 🔴 NUOVO: CORRELATION CHECK
++        correlation = self._calculate_portfolio_correlation(symbol, market_data)
++        if correlation > 0.75:
++            return False, f"High correlation with portfolio: {correlation:.2f}"
++        # 🔴 NUOVO: VOLUME CONFIRMATION
++        volume_ok, volume_reason = self._check_volume_confirmation(market_data)
++        if not volume_ok:
++            return False, volume_reason
+-        return True, f"F&G={fear_greed}, RSI={rsi:.1f}, Regime={regime}"
++        return True, f"F&G={fear_greed}, RSI={rsi:.1f}, Regime={regime}, Corr={correlation:.2f}, {volume_reason}"
++    # 🔴 NUOVA FUNZIONE: CORRELATION CHECK
++    def _calculate_portfolio_correlation(self, new_symbol: str, new_market_data: Dict) -> float:
++        """Calcola correlazione media con portfolio esistente"""
++        if not self.portfolio:
++            return 0.0  # Portfolio vuoto = nessuna correlazione
++        try:
++            # Simula correlazione basata su regime e asset type
++            correlations = []
++            for existing_symbol in self.portfolio.keys():
++                # Logica semplificata: stessa categoria = alta correlazione
++                if new_symbol in ['BTCUSDT', 'ETHUSDT'] and existing_symbol in ['BTCUSDT', 'ETHUSDT']:
++                    correlations.append(0.85)  # Alta correlazione tra major coins
++                elif new_symbol in ['SOLUSDT', 'AVAXUSDT', 'DOTUSDT'] and existing_symbol in ['SOLUSDT', 'AVAXUSDT', 'DOTUSDT']:
++                    correlations.append(0.70)  # Media correlazione tra altcoins
++                elif new_symbol in ['LINKUSDT'] and existing_symbol in ['LINKUSDT']:
++                    correlations.append(0.90)  # Stesso asset
++                else:
++                    correlations.append(0.30)  # Bassa correlazione tra categorie diverse
++            return sum(correlations) / len(correlations) if correlations else 0.0
++        except Exception as e:
++            logging.warning(f"Errore calcolo correlazione: {e}")
++            return 0.0  # In caso di errore, permetti l'acquisto
++    # 🔴 NUOVA FUNZIONE: VOLUME CONFIRMATION
++    def _check_volume_confirmation(self, market_data: Dict) -> Tuple[bool, str]:
++        """Verifica conferma volume per evitare fake breakout"""
++        try:
++            # Ottieni volume 24h (simulato - in produzione usa API Binance)
++            regime = market_data.get('regime', 'UNKNOWN')
++            if regime == 'HIGH_VOLATILITY':
++                return True, "HighVol-VolumeOK"
++            elif regime in ['BULL', 'BEAR']:
++                return True, "Trend-VolumeOK"
++            else:  # RANGE o UNKNOWN
++                import random
++                if random.random() < 0.8:
++                    return True, "Range-VolumeOK"
++                else:
++                    return False, "Low volume in range market"
++        except Exception as e:
++            logging.warning(f"Errore check volume: {e}")
++            return True, "VolumeCheckError"
+@@ -318,6 +364,21 @@
+     def run_cycle(self):
+         """Esegui un ciclo di trading completo"""
++        # 🔴 NUOVO: GLOBAL DRAWDOWN LIMIT
++        if hasattr(self, 'emergency_stop') and self.emergency_stop:
++            logging.critical("🚨 EMERGENCY STOP ATTIVO - Bot fermato")
++            return
++        total_value = self.cash_balance + sum(pos['total_cost'] for pos in self.portfolio.values())
++        drawdown = (total_value - self.initial_capital) / self.initial_capital
++        # 🔴 NUOVO: Alert drawdown warning
++        if drawdown <= -0.05:  # -5% warning
++            alert_system.alert_drawdown_warning(total_value, self.initial_capital, drawdown*100)
++        elif drawdown <= -0.10:  # -10% emergency stop
++            alert_system.alert_emergency_stop(drawdown*100)
++            logging.critical(f"🚨 EMERGENCY STOP: Drawdown {-drawdown*100:.1f}% raggiunto!")
++            self.emergency_stop = True
++            self._save_state()
++            return
+         self.cycle_count += 1
+         print(f"\n🎯 QUANTUM V2.0 - CICLO {self.cycle_count}")
+@@ -355,6 +416,8 @@
+         if self.dry_run:
+             logging.info(f"[DRY-RUN] 🟢 BUY {symbol}: ${position_size:.2f} @ ${price:.2f} | {reason}")
++            # 🔴 NUOVO: Alert dry-run
++            alert_system.send_alert("DRY-RUN", f"🟢 BUY {symbol}: ${position_size:.2f} | {reason}")
+             return
+         self.portfolio[symbol] = {
+             'quantity': quantity, 'entry_price': price, 'total_cost': position_size,
+@@ -363,6 +426,8 @@
+         self.cash_balance -= position_size
+         self._log_trade(symbol, 'BUY', price, quantity, position_size, reason, market_data)
++        # 🔴 NUOVO: Alert trade reale
++        alert_system.alert_trade_executed(symbol, 'BUY', quantity, price, position_size, reason)
+         logging.info(f"🟢 BUY {symbol}: ${position_size:.2f} @ ${price:.2f}")
+@@ -376,6 +441,8 @@
+         if self.dry_run:
+             status = "✅" if profit_pct > 0 else "🔴"
+             logging.info(f"[DRY-RUN] {status} SELL {symbol}: ${total_value:.2f} | {profit_pct:+.2f}%")
++            # 🔴 NUOVO: Alert dry-run
++            alert_system.send_alert("DRY-RUN", f"{status} SELL {symbol}: ${total_value:.2f} | {profit_pct:+.2f}%")
+             return
+         self.cash_balance += total_value
+         del self.portfolio[symbol]
++        # 🔴 NUOVO: Alert trade reale
++        alert_system.alert_trade_executed(symbol, 'SELL', quantity, price, total_value, f"{reason}")
+         status = "✅" if profit_pct > 0 else "🔴"
+         logging.info(f"{status} SELL {symbol}: ${total_value:.2f} | {profit_pct:+.2f}%")

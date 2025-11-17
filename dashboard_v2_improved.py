@@ -350,7 +350,7 @@ class QuantumDashboardHandler(http.server.SimpleHTTPRequestHandler):
         '''
 
 def main():
-    PORT = 8090
+    PORT = 8091
     
     print("🚀 QUANTUM TRADER V2 - DASHBOARD MIGLIORATA")
     print("📊 Porta: http://localhost:8090")
