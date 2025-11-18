@@ -1,0 +1,14 @@
+{
+  "cash_balance": 8333.333333333334,
+  "portfolio": {
+    "DOTUSDT": {
+      "quantity": 610.7243190423843,
+      "entry_price": 2.729,
+      "total_cost": 1666.6666666666667,
+      "entry_time": "2025-11-18T15:45:55.752435"
+    }
+  },
+  "cycle_count": 1,
+  "emergency_stop": false,
+  "timestamp": "2025-11-18T15:45:58.956769"
+}
