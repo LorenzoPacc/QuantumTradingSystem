@@ -1,0 +1,12 @@
+🎯 QUANTUM V3.1 - COMANDI PRINCIPALI:
+
+🚀 AVVIA:       ./quantum_v31_commands.sh start
+🛑 FERMA:       ./quantum_v31_commands.sh stop  
+📊 MONITOR:     ./quantum_v31_commands.sh monitor
+🌐 DASHBOARD:   ./quantum_v31_commands.sh dashboard
+💰 PORTAFOGLIO: ./quantum_v31_commands.sh portfolio
+🔧 STATO:       ./quantum_v31_commands.sh status
+🛡️ TRAILING:   ./quantum_v31_commands.sh trailing-info
+✅ TEST:        ./quantum_v31_commands.sh test
+
+🌐 URL: http://localhost:8050
