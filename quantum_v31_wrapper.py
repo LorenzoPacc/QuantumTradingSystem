@@ -179,3 +179,45 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+    # ========== MAIN LOOP ==========
+    trader = QuantumTraderV31(
+        dry_run=args.dry_run,
+        initial_capital=args.capital
+    )
+    
+    print(f"\n🚀 Starting Quantum V3.1 Trader")
+    print(f"💰 Capital: ${args.capital}")
+    print(f"🔒 Mode: {'DRY-RUN' if args.dry_run else 'LIVE'}")
+    print("=" * 50)
+    
+    cycle_interval = 600  # 10 minuti
+    
+    try:
+        while True:
+            try:
+                trader.run_cycle()
+                
+                # Sleep con countdown
+                for remaining in range(cycle_interval, 0, -30):
+                    print(f"⏳ Next cycle in {remaining}s...", end='\r')
+                    time.sleep(30)
+                print()  # Newline
+                
+            except KeyboardInterrupt:
+                print("\n🛑 Stopping trader...")
+                break
+            except Exception as e:
+                logging.error(f"❌ Cycle error: {e}")
+                print(f"⚠️  Error in cycle: {e}")
+                print("🔄 Retrying in 60s...")
+                time.sleep(60)
+                
+    except KeyboardInterrupt:
+        print("\n✅ Trader stopped by user")
+    finally:
+        trader._save_state_safe()
+        print("💾 State saved")
+
+if __name__ == '__main__':
+    main()

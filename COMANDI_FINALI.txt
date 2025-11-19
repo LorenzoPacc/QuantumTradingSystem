@@ -1,0 +1,32 @@
+🎯 QUANTUM V3.1 - COMANDI DEFINITIVI (19 Nov 2025)
+==================================================
+
+🚀 AVVIO:
+./sync_state.sh && python3 quantum_v31_wrapper.py --dry-run
+
+🛑 FERMARE:
+pkill -f "quantum_v31_wrapper.py"
+
+📊 MONITORAGGIO:
+tail -f quantum_v2.log                    # Log live
+./health_check.sh                         # Check integrità
+./quantum_status.sh                       # Stato portafoglio
+
+🌐 DASHBOARD:
+python3 dashboard_perfetta.py 8098        # Dashboard web
+
+💰 PORTAFOGLIO:
+cat quantum_v2_state.json | python3 -m json.tool  # Dettagli JSON
+
+💾 BACKUP:
+./backup_auto.sh                          # Salva su GitHub
+
+🔄 RIPRISTINO (se perdi tutto):
+git clone https://github.com/LorenzoPacc/QuantumTradingSystem.git
+cd QuantumTradingSystem
+./sync_state.sh
+python3 quantum_v31_wrapper.py --dry-run
+
+🔧 MANUTENZIONE:
+./sync_state.sh          # Sincronizza file state PRIMA di ogni avvio
+./health_check.sh        # Verifica salute sistema
