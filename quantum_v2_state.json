@@ -1,20 +1,9 @@
 {
-  "portfolio_value": 161.75,
-  "cash_balance": 161.75,
-  "portfolio": {
-    "DOTUSDT": {
-      "quantity": 12.1521876891962,
-      "entry_price": 2.662,
-      "invested_amount": 32.35,
-      "current_price": 2.717,
-      "total_cost": 32.349123628640285,
-      "stop_loss": 2.74329,
-      "profit_locked": 3.05,
-      "trailing_status": "ACTIVE_TRAILING"
-    }
-  },
+  "portfolio_value": 193.24847049039656,
+  "cash_balance": 193.24847049039656,
+  "portfolio": {},
   "cycle_count": 1688,
   "emergency_stop": false,
-  "timestamp": "2025-11-18T16:04:46.989481",
+  "timestamp": "2025-11-19T18:37:05.028847",
   "version": "QUANTUM_V3_SAFE"
 }

@@ -1,0 +1,26 @@
+🎯 QUANTUM V3.1 - COMANDI SICURI (19 Nov 2025)
+
+🚀 AVVIO:
+./sync_state.sh && python3 quantum_v31_wrapper.py --dry-run
+
+🛑 FERMARE:
+pkill -f "quantum_v31_wrapper.py"
+
+📊 MONITOR:
+tail -f quantum_v2.log
+
+🌐 DASHBOARD:
+python3 dashboard_perfetta.py 8098
+
+💰 PORTAFOGLIO:
+./quantum_status.sh
+
+🔧 UTILITY:
+./health_check.sh          # Check integrità
+./backup_auto.sh           # Backup GitHub
+
+⚡ EXTRA:
+cat quantum_v2_state.json | python3 -m json.tool  # Dettagli JSON
+
+🚨 SICUREZZA:
+SEMPRE eseguire ./sync_state.sh prima di avviare!

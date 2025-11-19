@@ -1,43 +1,9 @@
 {
-  "cash_balance": 100.0,
-  "portfolio": {
-    "BTCUSDT": {
-      "quantity": 0.000104352980216762,
-      "entry_price": 95828.6,
-      "total_cost": 10,
-      "entry_time": "2025-11-15T17:06:49.183479",
-      "take_profit": 103494.888
-    },
-    "DOTUSDT": {
-      "quantity": 3.498950314905528,
-      "entry_price": 2.858,
-      "total_cost": 10,
-      "entry_time": "2025-11-15T17:06:52.195493",
-      "take_profit": 3.0866400000000005
-    },
-    "UNIUSDT": {
-      "quantity": 1.3529968881071575,
-      "entry_price": 7.391,
-      "total_cost": 10,
-      "entry_time": "2025-11-15T17:06:54.037947",
-      "take_profit": 7.98228
-    },
-    "MATICUSDT": {
-      "quantity": 26.357406431207167,
-      "entry_price": 0.3794,
-      "total_cost": 10,
-      "entry_time": "2025-11-15T17:06:55.064078",
-      "take_profit": 0.40975200000000006
-    },
-    "ATOMUSDT": {
-      "quantity": 3.465003465003465,
-      "entry_price": 2.886,
-      "total_cost": 10,
-      "entry_time": "2025-11-15T17:06:56.226125",
-      "take_profit": 3.1168800000000005
-    }
-  },
-  "cycle_count": 1000,
+  "portfolio_value": 193.24847049039656,
+  "cash_balance": 193.24847049039656,
+  "portfolio": {},
+  "cycle_count": 1688,
   "emergency_stop": false,
-  "timestamp": "2025-11-15T17:06:56.442364"
+  "timestamp": "2025-11-19T18:37:05.028847",
+  "version": "QUANTUM_V3_SAFE"
 }
