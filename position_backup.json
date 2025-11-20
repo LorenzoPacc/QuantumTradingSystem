@@ -1,0 +1,16 @@
+{
+  "cash_balance": 173.91,
+  "portfolio": {
+    "DOTUSDT": {
+      "quantity": 7.11,
+      "entry_price": 2.72,
+      "current_price": 2.73,
+      "total_cost": 19.34,
+      "trailing_stop": 2.6928,
+      "stop_active": true
+    }
+  },
+  "portfolio_value": 193.25,
+  "initial_capital": 200.0,
+  "dry_run": true
+}

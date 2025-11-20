@@ -460,6 +460,16 @@ class QuantumTraderV21:
             
             if self.dry_run:
                 logging.info(f"[DRY-RUN] 🟢 BUY {symbol}: ${position_size:.2f} @ ${price:.2f} | {reason}")
+                # 🔧 FIX: In dry-run crea posizione fantasma per testing
+                self.portfolio[symbol] = {
+                    'quantity': quantity,
+                    'entry_price': price,
+                    'total_cost': position_size,
+                    'entry_time': datetime.now().isoformat(),
+                    'dry_run_position': True
+                }
+                self.cash_balance -= position_size
+                self._save_state_safe()
                 return
             
             # 🔴 ESECUZIONE REALE SICURA
