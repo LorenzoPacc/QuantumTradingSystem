@@ -1,0 +1,74 @@
+{
+  "balance": 50.625,
+  "portfolio": {
+    "BTCUSDT": {
+      "quantity": 0.0003944752167986482,
+      "total_cost": 40.0,
+      "entry_price": 101400.54
+    },
+    "ETHUSDT": {
+      "quantity": 0.012080139646414313,
+      "total_cost": 40.0,
+      "entry_price": 3311.22
+    },
+    "SOLUSDT": {
+      "quantity": 0.19169329073482427,
+      "total_cost": 30.0,
+      "entry_price": 156.5
+    },
+    "AVAXUSDT": {
+      "quantity": 1.4177693761814745,
+      "total_cost": 22.5,
+      "entry_price": 15.87
+    },
+    "LINKUSDT": {
+      "quantity": 1.165400552486188,
+      "total_cost": 16.875,
+      "entry_price": 14.48
+    }
+  },
+  "trade_history": [
+    {
+      "timestamp": "2025-11-06T18:38:38.536559",
+      "symbol": "BTCUSDT",
+      "action": "BUY",
+      "quantity": 0.0003944752167986482,
+      "price": 101400.54,
+      "amount": 40.0
+    },
+    {
+      "timestamp": "2025-11-06T18:38:39.912327",
+      "symbol": "ETHUSDT",
+      "action": "BUY",
+      "quantity": 0.012080139646414313,
+      "price": 3311.22,
+      "amount": 40.0
+    },
+    {
+      "timestamp": "2025-11-06T18:38:41.381712",
+      "symbol": "SOLUSDT",
+      "action": "BUY",
+      "quantity": 0.19169329073482427,
+      "price": 156.5,
+      "amount": 30.0
+    },
+    {
+      "timestamp": "2025-11-06T18:38:43.024539",
+      "symbol": "AVAXUSDT",
+      "action": "BUY",
+      "quantity": 1.4177693761814745,
+      "price": 15.87,
+      "amount": 22.5
+    },
+    {
+      "timestamp": "2025-11-06T18:38:44.505639",
+      "symbol": "LINKUSDT",
+      "action": "BUY",
+      "quantity": 1.165400552486188,
+      "price": 14.48,
+      "amount": 16.875
+    }
+  ],
+  "timestamp": "2025-11-06T18:49:52.459931",
+  "initial_balance": 200.0
+}

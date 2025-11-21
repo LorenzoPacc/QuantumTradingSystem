@@ -1,0 +1,63 @@
+{
+  "balance": 80.0,
+  "initial_balance": 200.0,
+  "portfolio": {
+    "ADAUSDT": 58.137730358874876,
+    "AVAXUSDT": 1.8992395437262357,
+    "LINKUSDT": 2.0914166085136077,
+    "MATICUSDT": 78.99314707432788
+  },
+  "orders_history": [
+    {
+      "orderId": 1000,
+      "symbol": "ADAUSDT",
+      "side": "BUY",
+      "type": "MARKET",
+      "quantity": 58.137730358874876,
+      "price": 0.5155,
+      "usdt_spent": 30.0,
+      "fee": 0.03,
+      "timestamp": "2025-11-04T21:48:55.066072",
+      "status": "FILLED (SIMULATED)"
+    },
+    {
+      "orderId": 1001,
+      "symbol": "AVAXUSDT",
+      "side": "BUY",
+      "type": "MARKET",
+      "quantity": 1.8992395437262357,
+      "price": 15.78,
+      "usdt_spent": 30.0,
+      "fee": 0.03,
+      "timestamp": "2025-11-04T21:48:56.486567",
+      "status": "FILLED (SIMULATED)"
+    },
+    {
+      "orderId": 1002,
+      "symbol": "LINKUSDT",
+      "side": "BUY",
+      "type": "MARKET",
+      "quantity": 2.0914166085136077,
+      "price": 14.33,
+      "usdt_spent": 30.0,
+      "fee": 0.03,
+      "timestamp": "2025-11-04T21:53:45.562739",
+      "status": "FILLED (SIMULATED)"
+    },
+    {
+      "orderId": 1003,
+      "symbol": "MATICUSDT",
+      "side": "BUY",
+      "type": "MARKET",
+      "quantity": 78.99314707432788,
+      "price": 0.3794,
+      "usdt_spent": 30.0,
+      "fee": 0.03,
+      "timestamp": "2025-11-04T21:54:33.516410",
+      "status": "FILLED (SIMULATED)"
+    }
+  ],
+  "order_id": 1004,
+  "total_fees": 0.12,
+  "saved_at": "2025-11-04T21:57:01.473698"
+}

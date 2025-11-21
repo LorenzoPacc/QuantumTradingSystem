@@ -1,0 +1,24 @@
+{
+    "trading": {
+        "initial_balance": 200,
+        "max_position_size": 50,
+        "min_position_size": 10,
+        "base_position_percentage": 0.3
+    },
+    "api": {
+        "binance_timeout": 15,
+        "fear_greed_timeout": 10,
+        "cache_duration_minutes": 5
+    },
+    "analysis": {
+        "technical_weight": 0.5,
+        "on_chain_weight": 0.3,
+        "macro_weight": 0.2
+    },
+    "symbols": [
+        "ADAUSDT",
+        "MATICUSDT", 
+        "AVAXUSDT",
+        "LINKUSDT"
+    ]
+}

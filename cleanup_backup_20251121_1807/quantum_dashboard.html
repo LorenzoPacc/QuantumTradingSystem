@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Quantum Trading Dashboard</title>
+    <meta http-equiv="refresh" content="30">
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #0f0f23; color: #00ff00; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .header { text-align: center; padding: 20px; background: #1a1a2e; border-radius: 10px; }
+        .systems { display: flex; gap: 20px; margin: 20px 0; }
+        .system { flex: 1; padding: 20px; background: #16213e; border-radius: 10px; }
+        .v2 { border-left: 5px solid #3498db; }
+        .v3 { border-left: 5px solid #e74c3c; }
+        .metric { margin: 10px 0; padding: 10px; background: #1a1a2e; border-radius: 5px; }
+        .positive { color: #2ecc71; }
+        .negative { color: #e74c3c; }
+        .last-update { text-align: center; margin-top: 20px; color: #7f8c8d; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 Quantum Trading Systems Dashboard</h1>
+            <p>Real-time Performance Monitoring</p>
+        </div>
+        
+        <div class="systems">
+            <div class="system v2">
+                <h2>🤖 V2.1 LIVE</h2>
+                <div class="metric">
+                    <strong>Status:</strong> <span id="v2-status">Loading...</span>
+                </div>
+                <div class="metric">
+                    <strong>Total Value:</strong> <span id="v2-value">Loading...</span>
+                </div>
+                <div class="metric">
+                    <strong>ROI:</strong> <span id="v2-roi">Loading...</span>
+                </div>
+                <div class="metric">
+                    <strong>Positions:</strong> <span id="v2-positions">Loading...</span>
+                </div>
+                <div class="metric">
+                    <strong>Last Activity:</strong> <span id="v2-activity">Loading...</span>
+                </div>
+            </div>
+            
+            <div class="system v3">
+                <h2>🚀 V3.0 MVP DRY-RUN</h2>
+                <div class="metric">
+                    <strong>Status:</strong> <span id="v3-status">Loading...</span>
+                </div>
+                <div class="metric">
+                    <strong>Total Value:</strong> <span id="v3-value">Loading...</span>
+                </div>
+                <div class="metric">
+                    <strong>ROI:</strong> <span id="v3-roi">Loading...</span>
+                </div>
+                <div class="metric">
+                    <strong>Positions:</strong> <span id="v3-positions">Loading...</span>
+                </div>
+                <div class="metric">
+                    <strong>Last Activity:</strong> <span id="v3-activity">Loading...</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="last-update">
+            Last updated: <span id="update-time">Loading...</span>
+        </div>
+    </div>
+
+    <script>
+        function updateDashboard() {
+            fetch('/api/quantum-status')
+                .then(response => response.json())
+                .then(data => {
+                    // V2.1 Data
+                    document.getElementById('v2-status').textContent = data.v2.running ? '🟢 RUNNING' : '🔴 STOPPED';
+                    document.getElementById('v2-value').textContent = data.v2.total_value;
+                    document.getElementById('v2-roi').textContent = data.v2.roi;
+                    document.getElementById('v2-roi').className = data.v2.roi >= 0 ? 'positive' : 'negative';
+                    document.getElementById('v2-positions').textContent = data.v2.positions;
+                    document.getElementById('v2-activity').textContent = data.v2.last_activity;
+                    
+                    // V3.0 Data
+                    document.getElementById('v3-status').textContent = data.v3.running ? '🟢 RUNNING' : '🔴 STOPPED';
+                    document.getElementById('v3-value').textContent = data.v3.total_value;
+                    document.getElementById('v3-roi').textContent = data.v3.roi;
+                    document.getElementById('v3-roi').className = data.v3.roi >= 0 ? 'positive' : 'negative';
+                    document.getElementById('v3-positions').textContent = data.v3.positions;
+                    document.getElementById('v3-activity').textContent = data.v3.last_activity;
+                    
+                    document.getElementById('update-time').textContent = new Date().toLocaleString();
+                })
+                .catch(error => {
+                    console.error('Error fetching data:', error);
+                    document.getElementById('update-time').textContent = 'Error updating';
+                });
+        }
+        
+        // Update immediately and every 30 seconds
+        updateDashboard();
+        setInterval(updateDashboard, 30000);
+    </script>
+</body>
+</html>
