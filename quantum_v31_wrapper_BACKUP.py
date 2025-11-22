@@ -6,14 +6,12 @@ Wrapper sicuro che estende Quantum V3 senza modifiche al codice originale
 
 import logging
 from typing import Dict, Tuple, Optional
+
 try:
     from quantum_v3_enhanced import QuantumTraderV21
 except ImportError as e:
     logging.error(f"❌ Impossibile importare QuantumTraderV21: {e}")
     exit(1)
-
-
-try:
 
 try:
     from quantum_trailing_stop import TrailingStopManager

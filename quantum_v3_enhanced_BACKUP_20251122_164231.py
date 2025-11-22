@@ -179,8 +179,7 @@ class QuantumTraderV21:
         self.db_name = "quantum_v2_performance.db"
         
         # 🔴 PARAMETRI DI SICUREZZA
-        self.FEAR_GREED_MIN = 16
-        self.FEAR_GREED_MAX = 28
+        self.FEAR_GREED_THRESHOLD = 30
         self.BASE_TAKE_PROFIT = 1.08
         self.MAX_POSITIONS = 6
         self.MIN_POSITION_SIZE = 10
@@ -402,8 +401,8 @@ class QuantumTraderV21:
         sma_7d = market_data['sma_7d']
         
         # Filtri di sicurezza
-        if not (self.FEAR_GREED_MIN <= fear_greed <= self.FEAR_GREED_MAX): 
-            return False, f"Fear&Greed fuori range ({fear_greed} not in {self.FEAR_GREED_MIN}-{self.FEAR_GREED_MAX})"
+        if fear_greed > self.FEAR_GREED_THRESHOLD: 
+            return False, f"Fear&Greed too high: {fear_greed}"
         if symbol in self.portfolio: 
             return False, "Already in portfolio"
         if len(self.portfolio) >= self.MAX_POSITIONS: 
