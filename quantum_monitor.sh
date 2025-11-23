@@ -1,50 +1,49 @@
 #!/bin/bash
+echo "🔍 Quantum Monitor - $(date)"
+echo "=========================="
 
-echo "🔍 Quantum Trader Monitor - $(date)"
-echo "=================================="
-
-# Check running processes
-if pgrep -f "python3 quantum_trader_final_real.py" > /dev/null; then
-    echo "✅ Quantum Trader in esecuzione"
-else
-    echo "❌ Quantum Trader NON in esecuzione"
-fi
-
-# Check system state
-if [ -f "paper_trading_state.json" ]; then
-    echo "📊 Stato sistema:"
-    python3 -c "
+# Bot corretto
+if ps aux | grep -q "[q]uantum_simple_fixed.py"; then
+    echo "✅ Bot: RUNNING"
+    
+    # State file corretto
+    if [ -f "quantum_v2_state.json" ]; then
+        python3 << 'PY'
 import json
 try:
-    with open('paper_trading_state.json', 'r') as f:
-        data = json.load(f)
-    balance = data['balance']
-    portfolio = data['portfolio']
-    total_value = balance + sum(asset['total_cost'] for asset in portfolio.values())
-    profit = total_value - 200
-    profit_pct = (profit / 200) * 100
-    print(f'💰 Balance: \${balance:.2f}')
-    print(f'📦 Asset in portfolio: {len(portfolio)}')
-    print(f'💎 Valore totale: \${total_value:.2f}')
-    print(f'📈 P&L: \${profit:+.2f} ({profit_pct:+.1f}%)')
+    with open("quantum_v2_state.json") as f:
+        state = json.load(f)
+    
+    cash = state.get("cash_balance", 0)
+    portfolio = state.get("portfolio", {})
+    positions = len(portfolio)
+    
+    invested = sum(p.get("total_cost", 0) for p in portfolio.values())
+    total = cash + invested
+    
+    print(f"💰 Cash: ${cash:.2f}")
+    print(f"📦 Posizioni: {positions}/6")
+    print(f"💎 Total: ${total:.2f}")
+    
+    if positions > 0:
+        print(f"\n📊 Posizioni attive:")
+        for sym, pos in portfolio.items():
+            qty = pos.get("quantity", 0)
+            cost = pos.get("total_cost", 0)
+            print(f"   {sym}: {qty:.6f} (${cost:.2f})")
 except Exception as e:
-    print('Errore caricamento stato:', e)
-"
+    print(f"❌ Errore: {e}")
+PY
+    else
+        echo "⚠️ State file non trovato"
+    fi
 else
-    echo "📝 Nessuno stato precedente trovato"
+    echo "❌ Bot: STOPPED"
 fi
 
-# API status
-echo "🌐 Test connessioni API..."
-python3 -c "
-import requests
-try:
-    response = requests.get('https://api.binance.com/api/v3/ping', timeout=10)
-    print('✅ Binance API: ONLINE')
-    
-    response = requests.get('https://api.alternative.me/fng/', timeout=10)
-    print('✅ Fear & Greed API: ONLINE')
-    
-except Exception as e:
-    print('❌ API Offline:', e)
-"
+# Fear & Greed
+echo ""
+fg=$(curl -s "https://api.alternative.me/fng/?limit=1" | python3 -c "import json,sys;d=json.load(sys.stdin)['data'][0];print(f'{d[\"value\"]} ({d[\"value_classification\"]})')" 2>/dev/null)
+echo "🎯 Fear & Greed: $fg"
+
+echo "=========================="

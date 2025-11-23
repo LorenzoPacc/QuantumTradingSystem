@@ -27,3 +27,19 @@ while True:
     except KeyboardInterrupt:
         print("\n🛑 STOP")
         break
+
+# =============================================================================
+# 🎯 TELEGRAM NOTIFICATIONS - ESSENTIAL
+# =============================================================================
+try:
+    from telegram_pro import telegram
+    if telegram.enabled:
+        print("✅ Telegram Notifications: ATTIVO")
+        # Notifica avvio
+        telegram.send("🤖 <b>Quantum Bot Avviato</b>\n\n✅ Sistema operativo\n📊 Fear & Greed: 13\n🎯 Strategia: 16-28", important=False)
+    else:
+        print("⚠️  Telegram: Configura TELEGRAM_BOT_TOKEN e TELEGRAM_CHAT_ID")
+except Exception as e:
+    print("⚠️  Telegram: Errore -", str(e))
+
+# =============================================================================
