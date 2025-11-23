@@ -1,0 +1,66 @@
+2025-11-23 15:19:41,565 - INFO - 🚀 QUANTUM TRADER V2.1 INITIALIZED - DRY-RUN
+2025-11-23 15:19:41,565 - INFO - 🚀 Advanced Gating System Initialized
+2025-11-23 15:19:41,565 - INFO - 🚀 Advanced Gating System Initialized
+2025-11-23 15:19:41,565 - INFO - 🚀 Quantum Integration Manager Initialized
+2025-11-23 15:19:41,565 - INFO - 🚀 QUANTUM V3 GATING SYSTEM INTEGRATED - DRY RUN MODE
+2025-11-23 15:19:41,568 - DEBUG - Starting new HTTPS connection (1): api.alternative.me:443
+2025-11-23 15:19:41,954 - DEBUG - https://api.alternative.me:443 "GET /fng/?limit=1 HTTP/1.1" 200 None
+2025-11-23 15:19:41,957 - DEBUG - Starting new HTTPS connection (1): api.binance.com:443
+2025-11-23 15:19:42,335 - DEBUG - https://api.binance.com:443 "GET /api/v3/ticker/price?symbol=BTCUSDT HTTP/1.1" 200 45
+2025-11-23 15:19:42,564 - DEBUG - https://api.binance.com:443 "GET /api/v3/klines?symbol=BTCUSDT&interval=5m&limit=288 HTTP/1.1" 200 15748
+2025-11-23 15:19:42,794 - DEBUG - https://api.binance.com:443 "GET /api/v3/klines?symbol=BTCUSDT&interval=15m&limit=96 HTTP/1.1" 200 5456
+2025-11-23 15:19:43,022 - DEBUG - https://api.binance.com:443 "GET /api/v3/klines?symbol=BTCUSDT&interval=1h&limit=48 HTTP/1.1" 200 2865
+2025-11-23 15:19:43,025 - DEBUG - Liquidity OK: 135.66%
+2025-11-23 15:19:43,251 - DEBUG - https://api.binance.com:443 "GET /api/v3/ticker/price?symbol=ETHUSDT HTTP/1.1" 200 44
+2025-11-23 15:19:43,482 - DEBUG - https://api.binance.com:443 "GET /api/v3/klines?symbol=ETHUSDT&interval=5m&limit=288 HTTP/1.1" 200 14885
+2025-11-23 15:19:43,711 - DEBUG - https://api.binance.com:443 "GET /api/v3/klines?symbol=ETHUSDT&interval=15m&limit=96 HTTP/1.1" 200 5178
+2025-11-23 15:19:43,939 - DEBUG - https://api.binance.com:443 "GET /api/v3/klines?symbol=ETHUSDT&interval=1h&limit=48 HTTP/1.1" 200 2697
+2025-11-23 15:19:43,941 - DEBUG - Liquidity OK: 172.36%
+2025-11-23 15:19:44,166 - DEBUG - https://api.binance.com:443 "GET /api/v3/ticker/price?symbol=SOLUSDT HTTP/1.1" 200 43
+2025-11-23 15:19:44,398 - DEBUG - https://api.binance.com:443 "GET /api/v3/klines?symbol=SOLUSDT&interval=5m&limit=288 HTTP/1.1" 200 13579
+2025-11-23 15:19:44,628 - DEBUG - https://api.binance.com:443 "GET /api/v3/klines?symbol=SOLUSDT&interval=15m&limit=96 HTTP/1.1" 200 4722
+2025-11-23 15:19:44,866 - DEBUG - https://api.binance.com:443 "GET /api/v3/klines?symbol=SOLUSDT&interval=1h&limit=48 HTTP/1.1" 200 2495
+2025-11-23 15:19:44,869 - DEBUG - Liquidity OK: 158.99%
+2025-11-23 15:19:45,106 - DEBUG - https://api.binance.com:443 "GET /api/v3/ticker/price?symbol=AVAXUSDT HTTP/1.1" 200 43
+2025-11-23 15:19:45,347 - DEBUG - https://api.binance.com:443 "GET /api/v3/klines?symbol=AVAXUSDT&interval=5m&limit=288 HTTP/1.1" 200 10794
+2025-11-23 15:19:45,596 - DEBUG - https://api.binance.com:443 "GET /api/v3/klines?symbol=AVAXUSDT&interval=15m&limit=96 HTTP/1.1" 200 3866
+2025-11-23 15:19:45,850 - DEBUG - https://api.binance.com:443 "GET /api/v3/klines?symbol=AVAXUSDT&interval=1h&limit=48 HTTP/1.1" 200 2117
+2025-11-23 15:19:45,851 - DEBUG - Liquidity OK: 84.85%
+2025-11-23 15:19:46,093 - DEBUG - https://api.binance.com:443 "GET /api/v3/ticker/price?symbol=LINKUSDT HTTP/1.1" 200 43
+2025-11-23 15:19:46,334 - DEBUG - https://api.binance.com:443 "GET /api/v3/klines?symbol=LINKUSDT&interval=5m&limit=288 HTTP/1.1" 200 11404
+2025-11-23 15:19:46,573 - DEBUG - https://api.binance.com:443 "GET /api/v3/klines?symbol=LINKUSDT&interval=15m&limit=96 HTTP/1.1" 200 4061
+2025-11-23 15:19:46,812 - DEBUG - https://api.binance.com:443 "GET /api/v3/klines?symbol=LINKUSDT&interval=1h&limit=48 HTTP/1.1" 200 2200
+2025-11-23 15:19:46,814 - DEBUG - Liquidity OK: 68.83%
+2025-11-23 15:19:47,066 - DEBUG - https://api.binance.com:443 "GET /api/v3/ticker/price?symbol=DOTUSDT HTTP/1.1" 200 41
+2025-11-23 15:19:47,315 - DEBUG - https://api.binance.com:443 "GET /api/v3/klines?symbol=DOTUSDT&interval=5m&limit=288 HTTP/1.1" 200 11682
+2025-11-23 15:19:47,556 - DEBUG - https://api.binance.com:443 "GET /api/v3/klines?symbol=DOTUSDT&interval=15m&limit=96 HTTP/1.1" 200 4168
+2025-11-23 15:19:47,795 - DEBUG - https://api.binance.com:443 "GET /api/v3/klines?symbol=DOTUSDT&interval=1h&limit=48 HTTP/1.1" 200 2268
+2025-11-23 15:19:47,797 - DEBUG - Liquidity OK: 89.70%
+============================================================
+🧪 TEST DEBUG - QUANTUM SMART V3
+============================================================
+
+💰 Cash: $191.81
+📊 Positions: 0
+🎯 Smart Engine: ✅ OK
+
+🔄 Running ONE cycle...
+
+
+🎯 QUANTUM V2.1 - CICLO 1690
+⚠️  DRY-RUN MODE
+==================================================
+📊 Fear & Greed: 13
+
+🔍 Checking SELL signals...
+
+🔍 Checking BUY signals...
+
+💰 PORTFOLIO STATUS:
+   Cash: $191.81
+
+💎 TOTAL: $191.81 (-4.09%)
+
+⏳ Next cycle in 600s...
+
+✅ Cycle completed!
