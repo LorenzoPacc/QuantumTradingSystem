@@ -1,0 +1,36 @@
+{
+  "cash": 61.45664000000001,
+  "portfolio": {
+    "AVAX/USDT": {
+      "entry_price": 13.9,
+      "amount": 48.0,
+      "entry_time": "2025-11-25T00:54:43.761337",
+      "signal_strength": 0.8,
+      "highest_price": 13.95
+    },
+    "DOT/USDT": {
+      "entry_price": 2.339,
+      "amount": 45.6,
+      "entry_time": "2025-11-25T00:54:45.269127",
+      "signal_strength": 1.0,
+      "highest_price": 2.345
+    },
+    "ETH/USDT": {
+      "entry_price": 2944.66,
+      "amount": 25.536,
+      "entry_time": "2025-11-25T01:05:22.624183",
+      "signal_strength": 0.8,
+      "highest_price": 2944.66
+    },
+    "BTC/USDT": {
+      "entry_price": 87973.67,
+      "amount": 19.40736,
+      "entry_time": "2025-11-25T01:16:05.929739",
+      "signal_strength": 0.8,
+      "highest_price": 88517.54
+    }
+  },
+  "capital_initial": 200.0,
+  "cycle_count": 53,
+  "timestamp": "2025-11-25T05:54:44.671621"
+}

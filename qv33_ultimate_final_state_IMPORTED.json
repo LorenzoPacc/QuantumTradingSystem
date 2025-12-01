@@ -1,0 +1,49 @@
+{
+    "capital": 79.32922611114044,
+    "total_invested": 200.0,
+    "positions": {
+        "ETH/USDT": {
+            "entry_price": 2993.74,
+            "amount": 0.016510337263316233,
+            "highest_price": 3086.63,
+            "entry_time": "2025-11-27T16:09:36.375935",
+            "entry_fear": 22,
+            "reserved_capital": 49.42
+        },
+        "DOT/USDT": {
+            "entry_price": 2.317,
+            "amount": 13.510652920370111,
+            "highest_price": 2.363,
+            "entry_time": "2025-11-28T07:10:05.615863",
+            "entry_fear": 25,
+            "reserved_capital": 31.30
+        },
+        "BTC/USDT": {
+            "entry_price": 90874.03,
+            "amount": 0.0002755830929166236,
+            "highest_price": 91108.27,
+            "entry_time": "2025-11-29T04:04:42.616004",
+            "entry_fear": 28,
+            "reserved_capital": 25.04
+        },
+        "AVAX/USDT": {
+            "entry_price": 14.1,
+            "amount": 1.4065465622542632,
+            "highest_price": 14.14,
+            "entry_time": "2025-11-30T06:09:44.798688",
+            "entry_fear": 28,
+            "reserved_capital": 19.83
+        }
+    },
+    "last_action": null,
+    "total_trades": 4,
+    "winning_trades": 0,
+    "losing_trades": 0,
+    "cycle_count": 688,
+    "total_pnl": 0.0,
+    "total_fees_paid": 0.0,
+    "max_portfolio_value": 204.48,
+    "max_drawdown": 0.0,
+    "fear_greed_history": [],
+    "trade_history": []
+}

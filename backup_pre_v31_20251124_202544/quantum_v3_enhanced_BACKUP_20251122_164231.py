@@ -29,7 +29,6 @@ import argparse
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple
 import logging
-from quantum_smart_improvements import SmartTradingEngine
 
 # Setup logging
 logging.basicConfig(
@@ -172,18 +171,15 @@ class QuantumTraderV21:
     def __init__(self, initial_capital: float = 200, dry_run: bool = False):
         self.initial_capital = initial_capital
         self.cash_balance = initial_capital
-        self.positions = {}
         self.portfolio: Dict = {}
         self.cycle_count = 0
         self.dry_run = dry_run
         self.emergency_stop = False
         self.api = AdvancedBinanceAPI()
-        self.smart_engine = SmartTradingEngine(logging.getLogger(__name__))
         self.db_name = "quantum_v2_performance.db"
         
         # 🔴 PARAMETRI DI SICUREZZA
-        self.FEAR_GREED_MIN = 16
-        self.FEAR_GREED_MAX = 28
+        self.FEAR_GREED_THRESHOLD = 30
         self.BASE_TAKE_PROFIT = 1.08
         self.MAX_POSITIONS = 6
         self.MIN_POSITION_SIZE = 10
@@ -310,60 +306,30 @@ class QuantumTraderV21:
         return 50
     
     def get_market_data(self, symbol: str) -> Optional[Dict]:
-        """Recupera dati di mercato con analisi multi-timeframe"""
+        """Ottieni dati completi di mercato"""
         try:
             price = self.api.get_price(symbol)
-            if not price:
-                return None
+            if not price: return None
             
-            # Day Trading: 5m, 15m, 1h
-            klines_5m = self.api.get_klines(symbol, '5m', 288)
-            klines_15m = self.api.get_klines(symbol, '15m', 96)
-            klines_1h = self.api.get_klines(symbol, '1h', 48)
+            klines_1h = self.api.get_klines(symbol, '1h', 100)
+            klines_1d = self.api.get_klines(symbol, '1d', 30)
+            if not klines_1h or not klines_1d: return None
             
-            if not klines_5m or not klines_15m or not klines_1h:
-                return None
-            
-            # Calcola closes per ogni timeframe
-            closes_5m = [k['close'] for k in klines_5m]
-            closes_15m = [k['close'] for k in klines_15m]
             closes_1h = [k['close'] for k in klines_1h]
+            closes_1d = [k['close'] for k in klines_1d]
             
-            # Struttura multi-timeframe
             return {
-                '5m': {
-                    'price': price,
-                    'rsi': TechnicalIndicators.rsi(closes_5m, 14),
-                    'sma_fast': TechnicalIndicators.sma(closes_5m, 10),
-                    'sma_slow': TechnicalIndicators.sma(closes_5m, 30),
-                    'atr': TechnicalIndicators.atr(klines_5m, 14),
-                    'volume': klines_5m[-1]['volume'] if klines_5m else 0,
-                    'klines': klines_5m,
-                },
-                '15m': {
-                    'price': price,
-                    'rsi': TechnicalIndicators.rsi(closes_15m, 14),
-                    'sma_fast': TechnicalIndicators.sma(closes_15m, 10),
-                    'sma_slow': TechnicalIndicators.sma(closes_15m, 30),
-                    'atr': TechnicalIndicators.atr(klines_15m, 14),
-                    'volume': klines_15m[-1]['volume'] if klines_15m else 0,
-                    'klines': klines_15m,
-                },
-                '1h': {
-                    'price': price,
-                    'rsi': TechnicalIndicators.rsi(closes_1h, 14),
-                    'sma_fast': TechnicalIndicators.sma(closes_1h, 10),
-                    'sma_slow': TechnicalIndicators.sma(closes_1h, 30),
-                    'atr': TechnicalIndicators.atr(klines_1h, 14),
-                    'volume': klines_1h[-1]['volume'] if klines_1h else 0,
-                    'regime': MarketRegimeDetector.detect_regime(klines_1h[-30:] if len(klines_1h) >= 30 else klines_1h),
-                    'klines': klines_1h,
-                }
+                'symbol': symbol, 'price': price, 
+                'rsi': TechnicalIndicators.rsi(closes_1h, 14),
+                'atr': TechnicalIndicators.atr(klines_1h, 14), 
+                'sma_7d': TechnicalIndicators.sma(closes_1d, 7),
+                'sma_30d': TechnicalIndicators.sma(closes_1d, 30), 
+                'regime': MarketRegimeDetector.detect_regime(klines_1d),
+                'klines_1d': klines_1d, 'closes_1d': closes_1d
             }
         except Exception as e:
-            logging.error(f"Errore get_market_data {symbol}: {e}")
+            logging.error(f"❌ Errore get_market_data {symbol}: {e}")
             return None
-
 
     def _calculate_portfolio_correlation(self, new_symbol: str, new_market_data: Dict) -> float:
         """Calcola correlazione media con portfolio esistente"""
@@ -430,59 +396,58 @@ class QuantumTraderV21:
             return (self.MIN_POSITION_SIZE / price), self.MIN_POSITION_SIZE
 
     def check_buy_signal(self, market_data: Dict, fear_greed: int) -> Tuple[bool, str]:
-        """Controlla condizioni BUY usando SmartTradingEngine"""
-        try:
-            total_value = self.cash_balance
-            if self.positions and '5m' in market_data:
-                for p in self.positions.values():
-                    total_value += p['quantity'] * market_data['5m']['price']
-            
-            should_buy, reason, metadata = self.smart_engine.generate_buy_signal(
-                market_data=market_data,
-                fear_greed=fear_greed,
-                cash_balance=self.cash_balance,
-                positions=self.positions,
-                total_value=total_value
-            )
-            
-            if should_buy:
-                logging.info(f"✅ BUY Signal: {reason}")
-                logging.debug(f"Metadata: {metadata}")
-            else:
-                logging.info(f"❌ No BUY: {reason}")
-                if metadata:
-                    logging.debug(f"Details: {metadata}")
-            
-            return should_buy, reason
-        except Exception as e:
-            logging.error(f"Error check_buy_signal: {e}")
-            return False, str(e)
-
+        """Verifica segnale di acquisto"""
+        symbol, price, rsi, regime = market_data['symbol'], market_data['price'], market_data['rsi'], market_data['regime']
+        sma_7d = market_data['sma_7d']
+        
+        # Filtri di sicurezza
+        if fear_greed > self.FEAR_GREED_THRESHOLD: 
+            return False, f"Fear&Greed too high: {fear_greed}"
+        if symbol in self.portfolio: 
+            return False, "Already in portfolio"
+        if len(self.portfolio) >= self.MAX_POSITIONS: 
+            return False, "Max positions reached"
+        if regime == 'BEAR': 
+            return False, "Bear market"
+        if sma_7d and price < sma_7d * 0.95: 
+            return False, "Price below SMA7"
+        if rsi and rsi > 70: 
+            return False, f"RSI overbought: {rsi:.1f}"
+        
+        # Controlli avanzati
+        correlation = self._calculate_portfolio_correlation(symbol, market_data)
+        if correlation > 0.75:
+            return False, f"High correlation: {correlation:.2f}"
+        
+        volume_ok, volume_reason = self._check_volume_confirmation(market_data)
+        if not volume_ok:
+            return False, volume_reason
+        
+        return True, f"F&G={fear_greed}, RSI={rsi:.1f}, Regime={regime}, {volume_reason}"
 
     def check_sell_signal(self, symbol: str, position: Dict, market_data: Dict) -> Tuple[bool, str]:
-        """Controlla condizioni SELL usando SmartExit"""
-        try:
-            if '5m' in market_data:
-                position['current_price'] = market_data['5m']['price']
-            
-            should_exit, reason = self.smart_engine.smart_exit.check_exit_signal(
-                position=position,
-                market_data=market_data
-            )
-            
-            if should_exit:
-                logging.info(f"✅ SELL Signal {symbol}: {reason}")
-            
-            return should_exit, reason
-        except Exception as e:
-            logging.error(f"Error check_sell_signal {symbol}: {e}")
-            return False, str(e)
-
+        """Verifica segnale di vendita"""
+        entry_price, current_price = position['entry_price'], market_data['price']
+        atr, regime = market_data['atr'], market_data['regime']
+        pnl_pct = ((current_price - entry_price) / entry_price) * 100
+        
+        if current_price >= entry_price * self.BASE_TAKE_PROFIT: 
+            return True, f"TAKE PROFIT: {pnl_pct:+.2f}%"
+        if atr:
+            dynamic_sl = AdvancedRiskManager.calculate_dynamic_stop_loss(entry_price, atr)
+            if current_price <= dynamic_sl: 
+                return True, f"STOP LOSS: {pnl_pct:+.2f}%"
+        elif current_price <= entry_price * 0.96: 
+            return True, f"STOP LOSS: {pnl_pct:+.2f}%"
+        if regime == 'BEAR' and pnl_pct > 0: 
+            return True, f"BEAR REGIME: {pnl_pct:+.2f}%"
+        
+        return False, f"HOLD: {pnl_pct:+.2f}%"
 
     def execute_buy(self, symbol: str, market_data: Dict, reason: str):
         """🔴 ESECUZIONE ACQUISTO SICURA"""
         try:
-            price = market_data['5m']['price']
+            price = market_data['price']
             quantity, position_size = self._calculate_safe_position_size(symbol, price)
             
             # 🔴 CONTROLLI FINALI DI SICUREZZA
@@ -530,7 +495,7 @@ class QuantumTraderV21:
                 return
                 
             position = self.portfolio[symbol]
-            price, quantity = market_data.get('5m', {}).get('price', 0), position['quantity']
+            price, quantity = market_data['price'], position['quantity']
             total_value = quantity * price
             profit_pct = ((price - position['entry_price']) / position['entry_price']) * 100
             
@@ -616,11 +581,11 @@ class QuantumTraderV21:
             for symbol, pos in self.portfolio.items():
                 market_data = self.get_market_data(symbol)
                 if market_data:
-                    value = pos['quantity'] * market_data.get('5m', {}).get('price', 0)
+                    value = pos['quantity'] * market_data['price']
                     total_value += value
-                    pnl = ((market_data.get('5m', {}).get('price', 0) - pos['entry_price']) / pos['entry_price']) * 100
+                    pnl = ((market_data['price'] - pos['entry_price']) / pos['entry_price']) * 100
                     status = "🟢" if pnl > 0 else "🔴"
-                    print(f"   {status} {symbol}: ${value:.2f} ({pnl:+.2f}%) | {market_data.get('1h', {}).get('regime', 'UNKNOWN')}")
+                    print(f"   {status} {symbol}: ${value:.2f} ({pnl:+.2f}%) | {market_data['regime']}")
             
             profit_pct = ((total_value - self.initial_capital) / self.initial_capital) * 100
             print(f"\n💎 TOTAL: ${total_value:.2f} ({profit_pct:+.2f}%)")

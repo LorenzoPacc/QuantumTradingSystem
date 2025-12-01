@@ -1,6 +1,6 @@
 {
   "portfolio_value": 191.81225049039654,
-  "cash_balance": 76.72490019615861,
+  "cash_balance": 95.90612524519827,
   "portfolio": {
     "ETHUSDT": {
       "quantity": 0.006780022144668816,
@@ -8,7 +8,7 @@
       "total_cost": 19.181225049039654,
       "entry_time": "2025-11-24T09:54:40.019404",
       "dry_run_position": true,
-      "current_price": 2962.01
+      "current_price": 2973.06
     },
     "AVAXUSDT": {
       "quantity": 1.428237159273243,
@@ -16,7 +16,7 @@
       "total_cost": 19.181225049039654,
       "entry_time": "2025-11-24T09:54:42.023326",
       "dry_run_position": true,
-      "current_price": 13.92
+      "current_price": 13.94
     },
     "BTCUSDT": {
       "quantity": 0.00022043199439646233,
@@ -24,7 +24,7 @@
       "total_cost": 19.181225049039654,
       "entry_time": "2025-11-24T18:10:25.676120",
       "dry_run_position": true,
-      "current_price": 88858.43
+      "current_price": 88681.92
     },
     "DOTUSDT": {
       "quantity": 8.321572689388136,
@@ -32,26 +32,18 @@
       "total_cost": 19.181225049039654,
       "entry_time": "2025-11-24T18:10:28.612930",
       "dry_run_position": true,
-      "current_price": 2.366
+      "current_price": 2.362
     },
     "LINKUSDT": {
       "quantity": 1.4630987832982192,
       "entry_price": 13.11,
       "total_cost": 19.181225049039654,
       "entry_time": "2025-11-24T20:15:20.636318",
-      "dry_run_position": true,
-      "current_price": 13.07
-    },
-    "SOLUSDT": {
-      "quantity": 0.13791504924532394,
-      "entry_price": 139.08,
-      "total_cost": 19.181225049039654,
-      "entry_time": "2025-11-24T23:04:29.452072",
       "dry_run_position": true
     }
   },
-  "cycle_count": 1785,
+  "cycle_count": 1754,
   "emergency_stop": false,
-  "timestamp": "2025-11-24T23:04:29.452098",
+  "timestamp": "2025-11-24T20:15:20.636345",
   "version": "QUANTUM_V3_SAFE"
 }

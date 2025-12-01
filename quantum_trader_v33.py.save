@@ -1,0 +1,4 @@
+# Incolla il codice sopra e salva con Ctrl+X, Y, Enter Rendi eseguibile
+chmod +x quantum_trader_v33.py
+# Installa le dipendenze (se non già installate)
+pip install ccxt numpy requests
