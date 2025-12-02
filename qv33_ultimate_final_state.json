@@ -6,7 +6,7 @@
     "total_trades": 9,
     "winning_trades": 1,
     "losing_trades": 8,
-    "cycle_count": 901,
+    "cycle_count": 1208,
     "total_pnl": -7.784976288389544,
     "total_fees_paid": 0.26865728736976,
     "max_portfolio_value": 204.92428667461093,
@@ -1075,6 +1075,1541 @@
         {
             "timestamp": "2025-12-01T21:50:41.551163",
             "value": 24,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-01T21:52:54.597558",
+            "value": 24,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-01T21:55:07.779059",
+            "value": 24,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-01T21:57:19.979157",
+            "value": 24,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-01T21:59:32.099296",
+            "value": 24,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-01T22:01:44.349960",
+            "value": 24,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-01T22:03:56.643460",
+            "value": 24,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-01T22:06:09.339170",
+            "value": 24,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-01T22:08:21.960092",
+            "value": 24,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-01T22:10:34.119386",
+            "value": 24,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-01T22:12:46.762938",
+            "value": 24,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-01T22:14:59.201103",
+            "value": 24,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-01T22:17:11.937200",
+            "value": 24,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-01T22:19:24.043082",
+            "value": 24,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-01T22:21:36.598996",
+            "value": 24,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-01T22:23:48.964287",
+            "value": 24,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-01T22:26:01.149796",
+            "value": 24,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-01T22:28:13.925554",
+            "value": 24,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-01T22:30:26.148687",
+            "value": 24,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-01T22:32:39.641061",
+            "value": 24,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-01T22:34:52.681691",
+            "value": 24,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-01T22:37:04.754403",
+            "value": 24,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-01T22:39:18.630527",
+            "value": 24,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-01T22:41:30.699647",
+            "value": 24,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-01T22:43:43.243827",
+            "value": 24,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-01T22:45:55.469725",
+            "value": 24,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-01T22:48:07.733177",
+            "value": 24,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-01T22:50:20.510576",
+            "value": 24,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-01T22:52:32.677243",
+            "value": 24,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-01T22:54:44.839088",
+            "value": 24,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-01T22:56:57.389234",
+            "value": 24,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-01T22:59:09.518586",
+            "value": 24,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-01T23:01:22.958501",
+            "value": 24,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-01T23:03:35.040207",
+            "value": 24,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-01T23:05:48.574215",
+            "value": 24,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-01T23:08:00.802347",
+            "value": 24,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-01T23:10:13.544729",
+            "value": 24,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-01T23:12:26.204460",
+            "value": 24,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-01T23:14:38.401249",
+            "value": 24,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-01T23:16:50.969534",
+            "value": 24,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-01T23:19:03.124766",
+            "value": 24,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-01T23:21:15.233975",
+            "value": 24,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-01T23:23:27.729550",
+            "value": 24,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-01T23:25:40.313092",
+            "value": 24,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-01T23:27:52.941011",
+            "value": 24,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-01T23:30:06.027435",
+            "value": 24,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-01T23:32:19.119231",
+            "value": 24,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-01T23:34:32.347853",
+            "value": 24,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-01T23:36:44.492427",
+            "value": 24,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-01T23:38:56.563430",
+            "value": 24,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-01T23:41:08.645457",
+            "value": 24,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-01T23:43:22.040721",
+            "value": 24,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-01T23:45:34.609919",
+            "value": 24,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-01T23:47:46.846866",
+            "value": 24,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-01T23:49:59.982103",
+            "value": 24,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-01T23:52:12.224754",
+            "value": 24,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-01T23:54:24.794398",
+            "value": 24,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-01T23:56:37.558362",
+            "value": 24,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-01T23:58:50.576725",
+            "value": 24,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T00:01:02.691856",
+            "value": 24,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T00:03:14.792394",
+            "value": 24,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T00:05:27.423720",
+            "value": 24,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T00:07:40.530135",
+            "value": 24,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T00:09:53.669362",
+            "value": 24,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T00:12:05.855525",
+            "value": 24,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T00:14:18.442030",
+            "value": 24,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T00:16:30.553716",
+            "value": 24,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T00:18:43.238912",
+            "value": 24,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T00:20:55.742207",
+            "value": 24,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T00:23:07.805598",
+            "value": 24,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T00:25:21.326657",
+            "value": 24,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T00:27:34.084697",
+            "value": 24,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T00:29:47.263939",
+            "value": 24,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T00:31:59.440375",
+            "value": 24,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T00:34:11.747308",
+            "value": 24,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T00:36:23.931583",
+            "value": 24,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T00:38:36.028816",
+            "value": 24,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T00:40:49.566555",
+            "value": 24,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T00:43:02.166948",
+            "value": 24,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T00:45:14.386662",
+            "value": 24,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T00:47:26.670053",
+            "value": 24,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T00:49:38.936873",
+            "value": 24,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T00:51:52.194142",
+            "value": 24,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T00:54:04.384457",
+            "value": 24,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T00:56:16.535393",
+            "value": 24,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T00:58:28.689835",
+            "value": 24,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T01:00:41.276111",
+            "value": 24,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T01:02:53.837153",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T01:05:07.092898",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T01:07:19.842600",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T01:09:32.566259",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T01:11:44.849744",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T01:13:57.675563",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T01:16:09.845523",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T01:18:21.974036",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T01:20:34.135889",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T01:22:46.235495",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T01:24:58.812320",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T01:27:11.059992",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T01:29:23.322875",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T01:31:35.562107",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T01:33:47.795504",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T01:36:00.498901",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T01:38:13.069780",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T01:40:25.186948",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T01:42:37.728221",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T01:44:49.821194",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T01:47:02.413961",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T01:49:15.544351",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T01:51:28.227401",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T01:53:40.897539",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T01:55:53.522176",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T01:58:06.515221",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T02:00:19.468186",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T02:02:33.387551",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T02:04:48.425167",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T02:07:02.430516",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T02:09:17.992223",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T02:11:32.556274",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T02:13:46.539958",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T02:16:00.519608",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T02:18:14.429171",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T02:20:29.333310",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T02:22:43.341157",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T02:24:57.379643",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T02:27:12.247836",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T02:29:26.423660",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T02:31:41.022678",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T02:33:56.556599",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T02:36:10.732171",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T02:38:25.458857",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T02:40:39.673914",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T02:42:54.403674",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T02:45:09.282358",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T02:47:23.794707",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T02:49:38.957558",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T02:51:53.746014",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T02:54:08.968651",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T02:56:23.324661",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T02:58:38.763839",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T03:00:53.320056",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T03:03:09.458703",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T03:05:24.749905",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T03:07:39.509254",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T03:09:54.723835",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T03:12:09.331159",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T03:14:23.900524",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T03:16:38.899226",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T03:18:53.396557",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T03:21:07.960799",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T03:23:23.397116",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T03:25:37.922134",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T03:27:52.723915",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T03:30:08.627261",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T03:32:23.188615",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T03:34:37.839823",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T03:36:52.323150",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T03:39:07.427334",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T03:41:21.899817",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T03:43:36.396239",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T03:45:50.863765",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T03:48:05.642937",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T03:50:21.114499",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T03:52:36.852396",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T03:54:51.456401",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T03:57:06.497109",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T03:59:21.381703",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T04:01:35.286484",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T04:03:49.863860",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T04:06:03.672087",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T04:08:18.192481",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T04:10:33.067320",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T04:12:48.053298",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T04:15:03.053823",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T04:17:19.123631",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T04:19:33.325963",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T04:21:48.245333",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T04:24:04.777000",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T04:26:19.210744",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T04:28:33.596288",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T04:30:50.019712",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T04:33:05.348568",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T04:35:20.527686",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T04:37:35.661979",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T04:39:50.703402",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T04:42:05.339495",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T04:44:19.873659",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T04:46:36.674558",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T04:48:51.323183",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T04:51:05.986939",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T04:53:22.269530",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T04:55:37.257155",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T04:57:54.499815",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T05:00:10.669914",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T05:02:24.656944",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T05:04:38.231894",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T05:06:51.335295",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T05:09:05.284005",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T05:11:20.410663",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T05:13:35.569420",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T05:15:51.151755",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T05:18:06.394734",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T05:20:24.540680",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T05:22:40.270382",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T05:24:56.669037",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T05:27:12.697145",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T05:29:28.232701",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T05:31:44.682101",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T05:34:00.262530",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T05:36:16.544288",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T05:38:32.708897",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T05:40:49.372174",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T05:43:06.229396",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T05:45:21.661956",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T05:47:36.702032",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T05:49:53.793242",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T05:52:11.193681",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T05:54:26.637382",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T05:56:43.376059",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T05:59:00.158498",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T06:01:16.399730",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T06:03:32.176722",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T06:05:52.047605",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T06:08:11.050084",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T06:10:27.421215",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T06:12:46.757980",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T06:15:05.518639",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T06:17:25.736774",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T06:19:45.992477",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T06:22:04.969146",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T06:24:24.273350",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T06:26:44.760225",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T06:29:06.055590",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T06:31:26.099920",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T06:33:48.323712",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T06:36:04.608691",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T06:38:20.264968",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T06:40:36.864905",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T06:42:52.885111",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T06:45:09.065865",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T06:47:24.921611",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T06:49:40.765080",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T06:51:56.910316",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T06:54:12.628032",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T06:56:29.287249",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T06:58:45.062341",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T07:01:00.445481",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T07:03:16.972248",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T07:05:32.561477",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T07:07:48.566664",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T07:10:05.429332",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T07:12:21.851057",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T07:14:37.829941",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T07:16:53.502680",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T07:19:10.861785",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T07:21:27.313482",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T07:23:44.144310",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T07:26:00.340227",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T07:28:15.931389",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T07:30:31.491444",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T07:32:47.868323",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T07:35:03.858749",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T07:37:20.416279",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T07:39:36.783897",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T07:41:52.303873",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T07:44:10.385574",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T07:46:26.068693",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T07:48:43.057110",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T07:50:58.758248",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T07:53:16.094981",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T07:55:32.114154",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T07:57:48.559350",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T08:00:07.215415",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T08:02:25.042703",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T08:04:40.605598",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T08:06:57.145030",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T08:09:12.856988",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T08:11:29.653343",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T08:13:45.438312",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T08:16:00.710288",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T08:18:16.808936",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T08:20:32.596518",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T08:22:49.670564",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T08:25:05.732667",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T08:27:21.398780",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T08:29:37.575139",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T08:31:53.492912",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T08:34:09.386859",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T08:36:26.168159",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T08:38:42.350053",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T08:41:01.182530",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T08:43:17.662972",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T08:45:34.678468",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T08:47:50.492749",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T08:49:03.215679",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T08:56:49.792111",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T08:59:07.542566",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T09:00:14.619013",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T09:02:30.250238",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T09:04:45.970757",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T09:06:04.098667",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T09:08:20.653688",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T09:09:23.308876",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T09:11:43.314088",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T09:13:59.099232",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T09:15:47.194861",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T09:18:04.060142",
+            "value": 23,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-02T09:20:19.524680",
+            "value": 23,
             "sentiment": "EXTREME_FEAR"
         }
     ],

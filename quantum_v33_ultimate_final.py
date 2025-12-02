@@ -9,6 +9,32 @@ QUANTUM TRADER V3.3 ULTIMATE - VERSIONE FINALE MIGLIORATA
 - Recovery robusto da crash
 """
 
+import sys
+import os
+
+# REGIME DETECTION PATCH
+try:
+    from regime_detection import detect_market_regime, get_position_size_based_on_regime
+    from dip_buy_module import check_dip_buy_signal, calculate_dip_scaling
+    PATCH_ACTIVE = True
+    print("✅ REGIME PATCH v1.0 ATTIVA - Mercato: Extreme Fear")
+except ImportError as e:
+    PATCH_ACTIVE = False
+    print(f"⚠️  Regime patch non disponibile: {e}")
+    
+import sys
+import os
+
+# REGIME DETECTION PATCH
+try:
+    from regime_detection import detect_market_regime, get_position_size_based_on_regime
+    from dip_buy_module import check_dip_buy_signal, calculate_dip_scaling
+    PATCH_ACTIVE = True
+    print("✅ REGIME PATCH v1.0 ATTIVA - Mercato: Extreme Fear")
+except ImportError as e:
+    PATCH_ACTIVE = False
+    print(f"⚠️  Regime patch non disponibile: {e}")
+    
 import ccxt
 import time
 import json
@@ -422,6 +448,29 @@ class QuantumTraderV33UltimateFinal:
         return None
 
     # -------------------------
+
+    def get_symbol_data(self, symbol, timeframe=None, limit=100):
+        """
+        Ottiene dati OHLCV per un simbolo
+        Wrapper per fetch_ohlcv con gestione errori
+        """
+        try:
+            if timeframe is None:
+                timeframe = self.interval
+            
+            ohlcv = self.exchange.fetch_ohlcv(symbol, timeframe, limit=limit)
+            
+            import pandas as pd
+            df = pd.DataFrame(ohlcv, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
+            df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
+            
+            return df
+            
+        except Exception as e:
+            self.logger.error(f"Error fetching data for {symbol}: {e}")
+            return None
+
+
     # Indicators: RSI, ATR, SMA
     # -------------------------
     def compute_rsi(self, symbol, period=None):
@@ -557,6 +606,9 @@ class QuantumTraderV33UltimateFinal:
         return float(position_capital)
 
     # -------------------------
+        self.fear_index = self.get_fear_greed_index()
+        fear_index = self.fear_index  # Alias locale
+        fear_greed = fear_index  # Alias per compatibilità
     # Reinvestment
     # -------------------------
     def check_reinvestment(self):
@@ -575,6 +627,7 @@ class QuantumTraderV33UltimateFinal:
     # Buy/sell/check logic
     # -------------------------
     def check_buy(self, symbol):
+        fear_index = getattr(self, "fear_index", self.get_fear_greed_index())
         if len(self.state["positions"]) >= self.max_positions:
             return False, "MAX_POSITIONS"
         if self.state["capital"] < self.min_capital_per_trade:
@@ -587,7 +640,6 @@ class QuantumTraderV33UltimateFinal:
         rsi = self.compute_rsi(symbol)
         if rsi is None:
             return False, "RSI_ERROR"
-        fear_index = self.get_fear_greed_index()
         if self.USE_TREND_FILTER:
             trend_ok, trend_reason = self.is_trend_favorable(symbol)
             if not trend_ok:
@@ -632,7 +684,8 @@ class QuantumTraderV33UltimateFinal:
             self.save_state()
             highest = price
         pnl_pct = (price - entry) / entry
-        fear_index = self.get_fear_greed_index()
+        self.fear_index = self.get_fear_greed_index()
+        fear_index = self.fear_index  # Alias locale
         entry_fear = pos.get("entry_fear", 50)
         # 1) stop loss
         stop_loss = self.stop_loss_extreme_fear if entry_fear < self.FG_EXTREME_FEAR else self.stop_loss_pct
@@ -668,7 +721,8 @@ class QuantumTraderV33UltimateFinal:
         if price is None:
             logger.error(f"Cannot buy {symbol}: price unavailable")
             return False
-        fear_index = self.get_fear_greed_index()
+        self.fear_index = self.get_fear_greed_index()
+        fear_index = self.fear_index  # Alias locale
         rsi = self.compute_rsi(symbol)
         position_capital = self.calculate_position_size(symbol, fear_index, rsi)
         if position_capital < self.min_order_value:
@@ -847,8 +901,10 @@ class QuantumTraderV33UltimateFinal:
         logger.info("=" * 80)
         logger.info(f"CYCLE {self.state['cycle_count']} - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         logger.info("=" * 80)
-        
-        fear_index = self.get_fear_greed_index()
+
+        # === MARKET REGIME REPORT ===
+        self.fear_index = self.get_fear_greed_index()
+        fear_index = self.fear_index  # Alias locale
         sentiment = (
             "EXTREME_FEAR" if fear_index < self.FG_EXTREME_FEAR else
             "FEAR" if fear_index < self.FG_FEAR else
@@ -857,6 +913,33 @@ class QuantumTraderV33UltimateFinal:
             "GREED" if fear_index < self.FG_GREED else
             "EXTREME_GREED"
         )
+        fear_greed = fear_index  # Alias
+
+        # TEMP DISABLED:         try:
+        # TEMP DISABLED:             if PATCH_ACTIVE:
+                # Analisi regime globale basata su BTC
+        # TEMP DISABLED:                 btc_data = self.get_symbol_data('BTC/USDT')
+        # TEMP DISABLED:                 if btc_data is not None and len(btc_data) > 50:
+        # TEMP DISABLED:                     regime_info = detect_market_regime(btc_data, fear_greed)
+        # TEMP DISABLED:                     
+        # TEMP DISABLED:                     print("📊 MARKET REGIME REPORT:")
+        # TEMP DISABLED:                     print(f"   Regime: {regime_info['regime']}")
+        # TEMP DISABLED:                     print(f"   Action: {regime_info['action']}")
+        # TEMP DISABLED:                     print(f"   Confidence: {regime_info['confidence']:.1%}")
+        # TEMP DISABLED:                     print(f"   Reason: {regime_info['reason']}")
+        # TEMP DISABLED:                     
+                    # Logica speciale per extreme fear
+        # TEMP DISABLED:                     if regime_info['regime'] == 'PANIC_CAPITULATION':
+        # TEMP DISABLED:                         print("🚨 ULTIMATE FEAR DETECTED! BUY THE DIP OPPORTUNITY!")
+        # TEMP DISABLED:                         print("   Strategy: Accumulate gradually")
+        # TEMP DISABLED:                         print("   Target: 2-3 positions max")
+                        # Riduci threshold per buy
+        # TEMP DISABLED:                         self.fear_greed_threshold = 35  # Più aggressivo
+        # TEMP DISABLED:         except Exception as e:
+        # TEMP DISABLED:             print(f"⚠️  Market regime report error: {e}")
+        # === FINE REPORT ===
+        
+        
         logger.info(f"Fear & Greed: {fear_index} ({sentiment})")
         
         # reinvest check
