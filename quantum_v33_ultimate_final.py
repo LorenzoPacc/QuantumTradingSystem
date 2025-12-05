@@ -1,3 +1,4 @@
+from fix_critical_bugs import CriticalFixes
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
@@ -144,7 +145,7 @@ class QuantumTraderV33UltimateFinal:
         self.RSI_OVERSOLD = 30
         self.RSI_NEUTRAL_LOW = 40
         self.RSI_NEUTRAL_HIGH = 60
-        self.RSI_OVERBOUGHT = 70
+        self.RSI_OVERBOUGHT = 75
         self.RSI_EXTREME_OVERBOUGHT = 80
 
         # SMA trend filter
@@ -214,6 +215,7 @@ class QuantumTraderV33UltimateFinal:
     # -------------------------
     # Lock management
     # -------------------------
+        self.fixes = CriticalFixes()  # ✅ FIX INTEGRATI
     def _setup_lock(self):
         if os.path.exists(self.lock_file):
             try:
@@ -502,7 +504,7 @@ class QuantumTraderV33UltimateFinal:
         try:
             ohlcv = self.exchange.fetch_ohlcv(symbol, self.interval, limit=period + 5)
             if not ohlcv or len(ohlcv) < period + 1:
-                return 0.03
+                return False, "Confidence check failed"
             highs = [c[2] for c in ohlcv]
             lows = [c[3] for c in ohlcv]
             closes = [c[4] for c in ohlcv]
@@ -519,7 +521,7 @@ class QuantumTraderV33UltimateFinal:
             return float(atr_pct)
         except Exception as e:
             logger.debug(f"ATR error {symbol}: {e}")
-            return 0.03
+            return False, "Confidence check failed"
 
     def is_trend_favorable(self, symbol):
         if not self.USE_TREND_FILTER:
@@ -573,10 +575,12 @@ class QuantumTraderV33UltimateFinal:
         return float(dynamic_tp)
 
     def calculate_position_size(self, symbol, fear_index, rsi):
+
+        # ✅ FIX: Check confidence threshold
         available_capital = float(self.state["capital"])
         usable_capital = available_capital * (1 - self.reserve_capital_pct)
         if usable_capital < self.min_capital_per_trade:
-            return 0.0
+            return False, "Confidence check failed"
         base_size = self.base_position_size
         if fear_index < self.FG_EXTREME_FEAR:
             fear_multiplier = 1.4
@@ -627,47 +631,66 @@ class QuantumTraderV33UltimateFinal:
     # Buy/sell/check logic
     # -------------------------
     def check_buy(self, symbol):
-        fear_index = getattr(self, "fear_index", self.get_fear_greed_index())
-        if len(self.state["positions"]) >= self.max_positions:
-            return False, "MAX_POSITIONS"
-        if self.state["capital"] < self.min_capital_per_trade:
-            return False, "LOW_CAPITAL"
-        if symbol in self.state["positions"]:
-            return False, "ALREADY_HOLDING"
+        """✅ FIXED: Usa get_symbol_data() + CriticalFixes"""
+        # Get price
         price = self.get_price(symbol)
         if price is None:
             return False, "PRICE_ERROR"
-        rsi = self.compute_rsi(symbol)
-        if rsi is None:
-            return False, "RSI_ERROR"
-        if self.USE_TREND_FILTER:
-            trend_ok, trend_reason = self.is_trend_favorable(symbol)
-            if not trend_ok:
-                return False, f"TREND_{trend_reason}"
-        # Hybrid scenarios
-        if fear_index < self.FG_EXTREME_FEAR:
-            if rsi < self.RSI_EXTREME_OVERSOLD:
-                return True, f"EXTREME_FEAR + SUPER_OVERSOLD (F={fear_index}, RSI={rsi:.1f})"
-            elif rsi < self.RSI_OVERSOLD:
-                return True, f"EXTREME_FEAR + OVERSOLD (F={fear_index}, RSI={rsi:.1f})"
-            elif rsi < self.RSI_NEUTRAL_LOW:
-                return True, f"EXTREME_FEAR + NEUTRAL_RSI (F={fear_index}, RSI={rsi:.1f})"
-        elif fear_index < self.FG_FEAR:
-            if rsi < self.RSI_OVERSOLD:
-                return True, f"FEAR + OVERSOLD (F={fear_index}, RSI={rsi:.1f})"
-            elif rsi < self.RSI_NEUTRAL_LOW:
-                return True, f"FEAR + NEAR_OVERSOLD (F={fear_index}, RSI={rsi:.1f})"
-        elif fear_index < self.FG_NEUTRAL_HIGH:
-            if rsi < self.RSI_EXTREME_OVERSOLD:
-                return True, f"NEUTRAL + SUPER_OVERSOLD (RSI={rsi:.1f})"
-            elif rsi < self.RSI_OVERSOLD:
-                return True, f"NEUTRAL + OVERSOLD (RSI={rsi:.1f})"
-        elif fear_index < self.FG_GREED:
-            if rsi < self.RSI_EXTREME_OVERSOLD:
-                trend_ok, trend_reason = self.is_trend_favorable(symbol)
-                if trend_ok and "STRONG" in trend_reason:
-                    return True, f"GREED + SUPER_OVERSOLD + STRONG_TREND (RSI={rsi:.1f})"
-        return False, f"No signal (F={fear_index}, RSI={rsi:.1f})"
+        
+        # Get Fear & Greed
+        fear_index = self.get_fear_greed_index()
+        if fear_index is None:
+            fear_index = 50
+        
+        # ✅ USA get_symbol_data() che ha già RSI precalcolato
+        symbol_data = self.get_symbol_data(symbol, timeframe='1h', limit=100)
+        
+        if symbol_data is None or symbol_data.empty:
+            logging.debug(f"{symbol}: No symbol_data available")
+            return False, "NO_DATA"
+        
+        # Calcola RSI manualmente
+        try:
+            closes = symbol_data['close']
+            delta = closes.diff()
+            gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
+            loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
+            rs = gain / loss
+            rsi_series = 100 - (100 / (1 + rs))
+            rsi = float(rsi_series.iloc[-1])
+            logging.debug(f"{symbol}: RSI calculated = {rsi:.1f}")
+        except Exception as e:
+            rsi = 50
+            logging.debug(f"{symbol}: RSI calc failed ({e}), using 50")
+        
+        # Calcola price change 24h
+        try:
+            if len(symbol_data) >= 24:
+                price_24h_ago = symbol_data['close'].iloc[-24]
+                price_change_24h = ((price - price_24h_ago) / price_24h_ago) * 100
+                logging.debug(f"{symbol}: Price change 24h = {price_change_24h:+.1f}%")
+            else:
+                price_change_24h = 0
+                logging.debug(f"{symbol}: Not enough data for 24h change")
+        except:
+            price_change_24h = 0
+        
+        # ✅ USA CRITICALFIXES
+        should_trade, confidence, score_info = self.fixes.fix_confidence_threshold(
+            fg=fear_index,
+            rsi=rsi,
+            price_change=price_change_24h,
+            min_confidence=45.0
+        )
+        
+        if should_trade:
+            reason = f"BUY (Conf: {confidence:.0f}%) | {score_info}"
+            logging.info(f"✅ {symbol}: {reason}")
+            return True, reason
+        # ✅ Check confidence threshold
+        if confidence < 40.0:  # self.MIN_CONFIDENCE
+            logging.debug(f"{symbol}: Conf={confidence:.0f}%, RSI={rsi:.1f}, F&G={fear_index}, Price24h={price_change_24h:+.1f}%")
+            return False, f"Low confidence ({confidence:.0f}% < 40%)"
 
     def check_sell(self, symbol):
         pos = self.state["positions"].get(symbol)
