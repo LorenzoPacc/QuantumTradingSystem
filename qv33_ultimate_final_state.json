@@ -37,7 +37,7 @@
         "BNB/USDT": {
             "entry_price": 875.13,
             "amount": 0.026,
-            "highest_price": 883.53,
+            "highest_price": 883.63,
             "entry_time": "2025-12-05T20:00:23.968412",
             "entry_fear": 28,
             "reserved_capital": 23.208824505659248
@@ -47,37 +47,12 @@
     "total_trades": 35,
     "winning_trades": 4,
     "losing_trades": 26,
-    "cycle_count": 2898,
+    "cycle_count": 2903,
     "total_pnl": -20.841581404045936,
     "total_fees_paid": 0.7705731768697599,
     "max_portfolio_value": 204.92428667461093,
     "max_drawdown": 0.10896524390146439,
     "fear_greed_history": [
-        {
-            "timestamp": "2025-12-04T07:12:42.202115",
-            "value": 26,
-            "sentiment": "EXTREME_FEAR"
-        },
-        {
-            "timestamp": "2025-12-04T07:15:06.230532",
-            "value": 26,
-            "sentiment": "EXTREME_FEAR"
-        },
-        {
-            "timestamp": "2025-12-04T07:17:26.072552",
-            "value": 26,
-            "sentiment": "EXTREME_FEAR"
-        },
-        {
-            "timestamp": "2025-12-04T07:19:45.996824",
-            "value": 26,
-            "sentiment": "EXTREME_FEAR"
-        },
-        {
-            "timestamp": "2025-12-04T07:22:05.321356",
-            "value": 26,
-            "sentiment": "EXTREME_FEAR"
-        },
         {
             "timestamp": "2025-12-04T07:24:26.775068",
             "value": 26,
@@ -5050,6 +5025,31 @@
         },
         {
             "timestamp": "2025-12-05T20:41:27.975005",
+            "value": 28,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-05T20:43:44.143096",
+            "value": 28,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-05T20:46:02.542093",
+            "value": 28,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-05T20:48:21.081211",
+            "value": 28,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-05T20:50:43.104615",
+            "value": 28,
+            "sentiment": "EXTREME_FEAR"
+        },
+        {
+            "timestamp": "2025-12-05T20:53:00.020166",
             "value": 28,
             "sentiment": "EXTREME_FEAR"
         }
