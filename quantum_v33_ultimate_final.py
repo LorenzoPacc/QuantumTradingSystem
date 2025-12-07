@@ -156,25 +156,25 @@ class QuantumTraderV33UltimateFinal:
         # dynamic TP
         self.USE_DYNAMIC_TP = True
         self.TAKE_PROFIT_MIN = 0.025
-        self.TAKE_PROFIT_EXTREME = 0.05  # PATCHED
-        self.TAKE_PROFIT_FEAR = 0.04  # PATCHED
-        self.TAKE_PROFIT_NORMAL = 0.03  # PATCHED
+        self.TAKE_PROFIT_EXTREME = 0.06  # PATCHED
+        self.TAKE_PROFIT_FEAR = 0.05  # PATCHED
+        self.TAKE_PROFIT_NORMAL = 0.04  # PATCHED
         self.TAKE_PROFIT_MAX = 0.15
 
         # risk management
         self.base_position_size = 0.20
         self.max_position_size = 0.30
         self.min_position_size = 0.10
-        self.stop_loss_pct = 0.020  # PATCHED
-        self.stop_loss_extreme_fear = 0.025  # PATCHED
+        self.stop_loss_pct = 0.030  # PATCHED
+        self.stop_loss_extreme_fear = 0.040  # PATCHED
         self.trailing_trigger = 0.015  # PATCHED
         self.trailing_stop = 0.010  # PATCHED
         self.trailing_tight = 0.01
         self.trailing_tight_threshold = 0.08
-        self.max_positions = 5
+        self.max_positions = 4
         self.min_capital_per_trade = 12.0
         self.min_order_value = 10.0
-        self.reserve_capital_pct = 0.15
+        self.reserve_capital_pct = 0.25
         self.reinvest_threshold = 0.10
 
         # fees (default 0.1% => 0.001)
@@ -688,7 +688,7 @@ class QuantumTraderV33UltimateFinal:
             logging.info(f"✅ {symbol}: {reason}")
             return True, reason
         # ✅ Check confidence threshold
-        if confidence < 40.0:  # self.MIN_CONFIDENCE
+        if confidence < 50.0:  # self.MIN_CONFIDENCE
             logging.debug(f"{symbol}: Conf={confidence:.0f}%, RSI={rsi:.1f}, F&G={fear_index}, Price24h={price_change_24h:+.1f}%")
             return False, f"Low confidence ({confidence:.0f}% < 40%)"
 
