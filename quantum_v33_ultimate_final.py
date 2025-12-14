@@ -1,4 +1,5 @@
-from fix_critical_bugs import CriticalFixes
+import logging
+from fix_confidence_now import CriticalFixes
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
@@ -167,11 +168,11 @@ class QuantumTraderV33UltimateFinal:
         self.min_position_size = 0.10
         self.stop_loss_pct = 0.030  # PATCHED
         self.stop_loss_extreme_fear = 0.040  # PATCHED
-        self.trailing_trigger = 0.015  # PATCHED
-        self.trailing_stop = 0.010  # PATCHED
+        self.trailing_trigger = 0.008  # FIX: Activate earlier (was 0.015)
+        self.trailing_stop = 0.012  # FIX: Tighter protection (was 0.010)
         self.trailing_tight = 0.01
         self.trailing_tight_threshold = 0.08
-        self.max_positions = 4
+        self.max_positions = 5  # FIX: Lower exposure (was 4)
         self.min_capital_per_trade = 12.0
         self.min_order_value = 10.0
         self.reserve_capital_pct = 0.25
@@ -216,6 +217,87 @@ class QuantumTraderV33UltimateFinal:
     # Lock management
     # -------------------------
         self.fixes = CriticalFixes()  # ✅ FIX INTEGRATI
+
+    def detect_market_regime(self):
+        """V5 P1: Regime detection with cache"""
+        import logging  # FIX 1: Explicit import
+        import time
+        
+        try:
+            now = time.time()
+            if hasattr(self, '_cached_regime') and hasattr(self, '_cached_regime_time'):
+                if now - self._cached_regime_time < 900:
+                    return self._cached_regime
+            
+            fear = self.get_fear_greed_index()
+            if fear is None:
+                fear = 50
+            
+            # FIX 2: Safe access with .get()
+            positions = self.state.get('positions', {})
+            if not positions:
+                regime = "NORMAL"
+            else:
+                total, count = 0, 0
+                for sym, pos in positions.items():
+                    try:
+                        tick = self.exchange.fetch_ticker(sym)
+                        total += ((tick['last'] / pos['entry_price']) - 1) * 100
+                        count += 1
+                    except:
+                        continue
+                
+                avg = total / count if count else 0
+                
+                if fear < 25:
+                    if avg < -1.5:
+                        regime = "DOWNTREND_EXTREME"
+                    elif avg < -0.5:
+                        regime = "DOWNTREND_MODERATE"
+                    else:
+                        regime = "SIDEWAYS_FEAR"
+                elif fear < 40:
+                    regime = "DOWNTREND_MODERATE" if avg < -1 else "SIDEWAYS_FEAR"
+                else:
+                    regime = "NORMAL"
+            
+            self._cached_regime = regime
+            self._cached_regime_time = now
+            
+            logging.info(f"🎯 REGIME: {regime} (F&G:{fear}, cached 15min)")
+            return regime
+            
+        except Exception as e:
+            logging.error(f"Regime detection error: {e}")
+            return "NORMAL"
+    
+    def get_adaptive_thresholds(self, regime):
+        """V5 P1: Adaptive thresholds"""
+        import logging  # FIX 1: Explicit import
+        
+        thresholds = {
+            "DOWNTREND_EXTREME": {
+                "tp": 1.5, "sl": -2.0, "stale": 24,
+                "trail_min": 1.5, "trail_lock": 0.6
+            },
+            "DOWNTREND_MODERATE": {
+                "tp": 2.0, "sl": -2.5, "stale": 30,
+                "trail_min": 2.0, "trail_lock": 0.65
+            },
+            "SIDEWAYS_FEAR": {
+                "tp": 3.0, "sl": -3.0, "stale": 48,
+                "trail_min": 2.5, "trail_lock": 0.7
+            },
+            "NORMAL": {
+                "tp": 5.0, "sl": -3.0, "stale": 72,
+                "trail_min": 3.0, "trail_lock": 0.7
+            }
+        }
+        
+        cfg = thresholds.get(regime, thresholds["NORMAL"])
+        logging.info(f"⚙️  ADAPTIVE: TP={cfg['tp']}% SL={cfg['sl']}% Stale={cfg['stale']}h")
+        return cfg
+
     def _setup_lock(self):
         if os.path.exists(self.lock_file):
             try:
@@ -633,6 +715,10 @@ class QuantumTraderV33UltimateFinal:
     def check_buy(self, symbol):
         """✅ FIXED: Usa get_symbol_data() + CriticalFixes"""
         # Get price
+        # ✅ Check max positions FIRST
+        if len(self.state['positions']) >= self.max_positions:
+            return False, f"Max positions reached ({self.max_positions})"
+
         price = self.get_price(symbol)
         if price is None:
             return False, "PRICE_ERROR"
@@ -679,10 +765,16 @@ class QuantumTraderV33UltimateFinal:
         should_trade, confidence, score_info = self.fixes.fix_confidence_threshold(
             fg=fear_index,
             rsi=rsi,
-            price_change=price_change_24h,
-            min_confidence=45.0
+            pc=price_change_24h,
+            min_conf=45.0
         )
-        
+        # 🚀 FEAR BONUS FIXED
+        if fear_index < 30:  # EXTREME FEAR
+            confidence = confidence * 1.25
+            logging.info(f"🚀 FEAR BONUS APPLIED: +25% (F&G: {fear_index})")
+        elif fear_index < 45:  # FEAR
+            confidence = confidence * 1.15
+            logging.info(f"📈 FEAR BONUS APPLIED: +15% (F&G: {fear_index})")
         if should_trade:
             reason = f"BUY (Conf: {confidence:.0f}%) | {score_info}"
             logging.info(f"✅ {symbol}: {reason}")
@@ -693,52 +785,62 @@ class QuantumTraderV33UltimateFinal:
             return False, f"Low confidence ({confidence:.0f}% < 40%)"
 
     def check_sell(self, symbol):
-        pos = self.state["positions"].get(symbol)
-        if not pos:
-            return False, "NO_POSITION"
-        price = self.get_price(symbol)
-        if price is None:
-            return False, "PRICE_ERROR"
-        entry = float(pos["entry_price"])
-        highest = float(pos.get("highest_price", entry))
-        # Update highest price if current price is higher
-        if price > highest:
-            self.state["positions"][symbol]["highest_price"] = price
-            self.save_state()
-            highest = price
-        pnl_pct = (price - entry) / entry
-        self.fear_index = self.get_fear_greed_index()
-        fear_index = self.fear_index  # Alias locale
-        entry_fear = pos.get("entry_fear", 50)
-        # 1) stop loss
-        stop_loss = self.stop_loss_extreme_fear if entry_fear < self.FG_EXTREME_FEAR else self.stop_loss_pct
-        if pnl_pct <= -stop_loss:
-            return True, f"STOP_LOSS ({pnl_pct*100:.2f}%)"
-        # 2) dynamic TP
-        dynamic_tp = self.calculate_dynamic_tp(symbol, entry_fear)
-        if pnl_pct >= dynamic_tp:
-            return True, f"TP_DYNAMIC ({pnl_pct*100:.2f}% vs target {dynamic_tp*100:.1f}%)"
-        # 3) trailing stop
-        if highest > entry * (1 + self.trailing_trigger):
-            trailing_pct = self.trailing_tight if pnl_pct > self.trailing_tight_threshold else self.trailing_stop
-            if price <= highest * (1 - trailing_pct):
-                return True, f"TRAILING_STOP ({pnl_pct*100:.2f}%)"
-        # 4) RSI overbought with profit
-        rsi = self.compute_rsi(symbol)
-        if rsi and rsi >= self.RSI_EXTREME_OVERBOUGHT and pnl_pct > 0.02:
-            return True, f"RSI_EXTREME_OVERBOUGHT ({rsi:.1f})"
-        elif rsi and rsi >= self.RSI_OVERBOUGHT and pnl_pct > 0.05:
-            return True, f"RSI_OVERBOUGHT ({rsi:.1f})"
-        # 5) greed-based sells
-        if fear_index >= self.FG_EXTREME_GREED and pnl_pct > 0.08:
-            return True, f"EXTREME_GREED (F={fear_index})"
-        elif fear_index >= self.FG_GREED and pnl_pct > 0.12:
-            return True, f"GREED_WITH_HIGH_PROFIT (F={fear_index})"
-        return False, f"HOLD (PnL: {pnl_pct*100:+.2f}%, High: {((highest-entry)/entry)*100:.2f}%)"
+        """V5 P1: Adaptive exit strategy"""
+        import logging  # FIX 1: Explicit import
+        from datetime import datetime
+        
+        try:
+            # FIX 2: Safe access
+            if symbol not in self.state.get('positions', {}):
+                return False, "No position"
+            
+            pos = self.state['positions'][symbol]
+            tick = self.exchange.fetch_ticker(symbol)
+            current = tick['last']
+            entry = pos['entry_price']
+            pnl = ((current / entry) - 1) * 100
+            
+            # Update highest
+            if 'highest_pnl' not in pos or pnl > pos['highest_pnl']:
+                pos['highest_pnl'] = pnl
+                self.save_state()
+            
+            # Get adaptive config
+            regime = self.detect_market_regime()
+            cfg = self.get_adaptive_thresholds(regime)
+            
+            # Trailing stop
+            highest = pos.get('highest_pnl', 0)
+            if highest > cfg['trail_min']:
+                threshold = highest * cfg['trail_lock']
+                if pnl < threshold:
+                    logging.info(f"🔒 TRAILING [{regime}]: {symbol} High:{highest:.2f}% Lock:{pnl:.2f}%")
+                    return True, f"TRAILING_STOP({pnl:.2f}%)"
+            
+            # Stale cleanup
+            entry_time = datetime.fromisoformat(pos['entry_time'])
+            age_hours = (datetime.now() - entry_time).total_seconds() / 3600
+            
+            if age_hours > cfg['stale'] and -1.0 < pnl < 1.5:
+                logging.info(f"🧹 STALE [{regime}]: {symbol} Age:{age_hours:.0f}h PnL:{pnl:.2f}%")
+                return True, f"STALE_CLEANUP({age_hours:.0f}h)"
+            
+            # Take profit
+            if pnl >= cfg['tp']:
+                logging.info(f"✅ TP [{regime}]: {symbol} {pnl:.2f}% (target:{cfg['tp']}%)")
+                return True, f"TAKE_PROFIT({pnl:.2f}%)"
+            
+            # Stop loss
+            if pnl <= cfg['sl']:
+                logging.info(f"🛑 SL [{regime}]: {symbol} {pnl:.2f}% (limit:{cfg['sl']}%)")
+                return True, f"STOP_LOSS({pnl:.2f}%)"
+            
+            return False, f"HOLD (PnL:{pnl:+.2f}%, High:{highest:.2f}%)"
+            
+        except Exception as e:
+            logging.error(f"Error check_sell {symbol}: {e}")
+            return False, f"Error: {str(e)}"
 
-    # -------------------------
-    # Execution - IMPROVED
-    # -------------------------
     def buy(self, symbol):
         price = self.get_price(symbol)
         if price is None:
