@@ -220,6 +220,8 @@ class QuantumTraderV33UltimateFinal:
 
     def detect_market_regime(self):
         """V5 P1: Regime detection with cache"""
+        import logging
+        logger = logging.getLogger(__name__)
         import logging  # FIX 1: Explicit import
         import time
         
@@ -248,14 +250,16 @@ class QuantumTraderV33UltimateFinal:
                         continue
                 
                 avg = total / count if count else 0
+                logger.info(f"📊 Regime calc: avg={avg:.2f}%, fear={fear}")
                 
                 if fear < 25:
-                    if avg < -1.5:
+                    # In EXTREME FEAR, use market trend not portfolio PnL
+                    if avg < 1.0:  # Lower threshold
                         regime = "DOWNTREND_EXTREME"
-                    elif avg < -0.5:
-                        regime = "DOWNTREND_MODERATE"
+                        logger.info(f"✅ REGIME → DOWNTREND_EXTREME (avg={avg:.2f}%)")
                     else:
                         regime = "SIDEWAYS_FEAR"
+                        logger.info(f"⚠️  REGIME → SIDEWAYS_FEAR (avg={avg:.2f}%)")
                 elif fear < 40:
                     regime = "DOWNTREND_MODERATE" if avg < -1 else "SIDEWAYS_FEAR"
                 else:
