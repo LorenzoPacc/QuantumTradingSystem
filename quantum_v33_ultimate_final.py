@@ -266,6 +266,9 @@ class QuantumTraderV33UltimateFinal:
                     regime = "NORMAL"
             
             self._cached_regime = regime
+
+            # Adaptive entry confidence thresholds
+            adaptive_min_conf = 60 if regime == "DOWNTREND_EXTREME" else 55 if regime == "DOWNTREND" else 50
             self._cached_regime_time = now
             
             logging.info(f"🎯 REGIME: {regime} (F&G:{fear}, cached 15min)")
@@ -661,46 +664,88 @@ class QuantumTraderV33UltimateFinal:
         return float(dynamic_tp)
 
     def calculate_position_size(self, symbol, fear_index, rsi):
-
-        # ✅ FIX: Check confidence threshold
+        """V5 P2: ADAPTIVE POSITION SIZING - preserva firma originale"""
+        
+        # Base size
         available_capital = float(self.state["capital"])
         usable_capital = available_capital * (1 - self.reserve_capital_pct)
+        
         if usable_capital < self.min_capital_per_trade:
-            return False, "Confidence check failed"
+            return False, "Insufficient capital"
+        
         base_size = self.base_position_size
+        
+        # ===== ADAPTIVE FACTORS =====
+        
+        # FACTOR 1: Cash percentage
+        cash_pct = self.cash / self.INITIAL_CAPITAL
+        if cash_pct < 0.3:
+            logging.info(f"{symbol}: Skip BUY (Cash {cash_pct*100:.0f}% < 30%)")
+            return False, f"Cash too low ({cash_pct*100:.0f}%)"
+        elif cash_pct < 0.5:
+            cash_factor = 0.5
+        elif cash_pct < 0.7:
+            cash_factor = 0.8
+        else:
+            cash_factor = 1.0
+        
+        # FACTOR 2: Drawdown
+        dd = self.max_drawdown
+        if dd > 18:
+            logging.info(f"{symbol}: Skip BUY (DD {dd:.1f}% > 18%)")
+            return False, f"DD too high ({dd:.1f}%)"
+        elif dd > 15:
+            dd_factor = 0.5
+        elif dd > 12:
+            dd_factor = 0.7
+        else:
+            dd_factor = 1.0
+        
+        # FACTOR 3: Fear & Greed (originale + adaptive)
         if fear_index < self.FG_EXTREME_FEAR:
-            fear_multiplier = 1.4
+            fear_multiplier = 1.0
         elif fear_index < self.FG_FEAR:
-            fear_multiplier = 1.2
+            fear_multiplier = 1.0
         elif fear_index > self.FG_EXTREME_GREED:
             fear_multiplier = 0.6
         elif fear_index > self.FG_GREED:
             fear_multiplier = 0.8
         else:
             fear_multiplier = 1.0
+        
+        # FACTOR 4: RSI (originale)
+        rsi_multiplier = 1.0
         if rsi is not None:
             if rsi < self.RSI_EXTREME_OVERSOLD:
                 rsi_multiplier = 1.3
             elif rsi < self.RSI_OVERSOLD:
-                rsi_multiplier = 1.15
-            elif rsi < self.RSI_NEUTRAL_LOW:
-                rsi_multiplier = 1.05
-            else:
-                rsi_multiplier = 0.9
+                rsi_multiplier = 1.1
+            elif rsi > self.RSI_EXTREME_OVERBOUGHT:
+                rsi_multiplier = 0.6
+            elif rsi > self.RSI_OVERBOUGHT:
+                rsi_multiplier = 0.8
+        
+        # FACTOR 5: Regime
+        regime = self.detect_market_regime()
+        if regime == "DOWNTREND_EXTREME":
+            regime_factor = 0.6
+        elif regime == "DOWNTREND":
+            regime_factor = 0.8
         else:
-            rsi_multiplier = 1.0
-        size_multiplier = fear_multiplier * rsi_multiplier
-        position_size_pct = base_size * size_multiplier
-        position_size_pct = max(self.min_position_size, min(position_size_pct, self.max_position_size))
-        position_capital = usable_capital * position_size_pct
-        return float(position_capital)
+            regime_factor = 1.0
+        
+        # ===== CALCOLO FINALE =====
+        final_multiplier = cash_factor * dd_factor * fear_multiplier * rsi_multiplier * regime_factor
+        final_size = base_size * final_multiplier
+        
+        # Log dettagliato
+        logging.info(f"📊 {symbol} SIZE: {final_size:.2f}$ = base({base_size:.0f}) × cash({cash_factor:.1f}) × dd({dd_factor:.1f}) × fear({fear_multiplier:.1f}) × rsi({rsi_multiplier:.1f}) × regime({regime_factor:.1f})")
+        
+        # Minimo $10
+        final_size = max(10, final_size)
+        
+        return True, final_size
 
-    # -------------------------
-        self.fear_index = self.get_fear_greed_index()
-        fear_index = self.fear_index  # Alias locale
-        fear_greed = fear_index  # Alias per compatibilità
-    # Reinvestment
-    # -------------------------
     def check_reinvestment(self):
         total_value = self.calculate_total()
         total_invested = float(self.state.get("total_invested", self.initial_capital))
@@ -717,6 +762,8 @@ class QuantumTraderV33UltimateFinal:
     # Buy/sell/check logic
     # -------------------------
     def check_buy(self, symbol):
+        # Detect regime per adaptive thresholds
+        regime = self.detect_market_regime()
         """✅ FIXED: Usa get_symbol_data() + CriticalFixes"""
         # Get price
         # ✅ Check max positions FIRST
@@ -779,14 +826,23 @@ class QuantumTraderV33UltimateFinal:
         elif fear_index < 45:  # FEAR
             confidence = confidence * 1.15
             logging.info(f"📈 FEAR BONUS APPLIED: +15% (F&G: {fear_index})")
+        
+        # Calcolo threshold dinamico
+        min_conf = 40 if regime == "DOWNTREND_EXTREME" else 45 if regime == "DOWNTREND" else 40
+        
+        # DEBUG
+        logging.info(f"🔍 {symbol}: conf={confidence:.1f}%, min={min_conf}%, bonus_applied={fear_index < 30}")
+        
+        # Ricalcola should_trade DOPO fear bonus
+        should_trade = confidence >= min_conf
+        
         if should_trade:
             reason = f"BUY (Conf: {confidence:.0f}%) | {score_info}"
             logging.info(f"✅ {symbol}: {reason}")
             return True, reason
-        # ✅ Check confidence threshold
-        if confidence < 50.0:  # self.MIN_CONFIDENCE
-            logging.debug(f"{symbol}: Conf={confidence:.0f}%, RSI={rsi:.1f}, F&G={fear_index}, Price24h={price_change_24h:+.1f}%")
-            return False, f"Low confidence ({confidence:.0f}% < 40%)"
+            
+        logging.info(f"{symbol}: Low confidence ({confidence:.0f}% < {min_conf}%)")
+        return False, f"Low confidence ({confidence:.0f}% < {min_conf}%)"
 
     def check_sell(self, symbol):
         """V5 P1: Adaptive exit strategy"""
