@@ -163,7 +163,7 @@ class QuantumTraderV33UltimateFinal:
         self.TAKE_PROFIT_MAX = 0.15
 
         # risk management
-        self.base_position_size = 0.20
+        self.base_position_size = 25.0
         self.max_position_size = 0.30
         self.min_position_size = 0.10
         self.stop_loss_pct = 0.030  # PATCHED
@@ -678,7 +678,7 @@ class QuantumTraderV33UltimateFinal:
         # ===== ADAPTIVE FACTORS =====
         
         # FACTOR 1: Cash percentage
-        cash_pct = self.cash / self.INITIAL_CAPITAL
+        cash_pct = float(self.state["capital"]) / self.initial_capital
         if cash_pct < 0.3:
             logging.info(f"{symbol}: Skip BUY (Cash {cash_pct*100:.0f}% < 30%)")
             return False, f"Cash too low ({cash_pct*100:.0f}%)"
@@ -690,7 +690,7 @@ class QuantumTraderV33UltimateFinal:
             cash_factor = 1.0
         
         # FACTOR 2: Drawdown
-        dd = self.max_drawdown
+        dd = float(self.state.get("max_drawdown", 0.0))
         if dd > 18:
             logging.info(f"{symbol}: Skip BUY (DD {dd:.1f}% > 18%)")
             return False, f"DD too high ({dd:.1f}%)"
@@ -909,7 +909,10 @@ class QuantumTraderV33UltimateFinal:
         self.fear_index = self.get_fear_greed_index()
         fear_index = self.fear_index  # Alias locale
         rsi = self.compute_rsi(symbol)
-        position_capital = self.calculate_position_size(symbol, fear_index, rsi)
+        can_buy, position_capital = self.calculate_position_size(symbol, fear_index, rsi)
+        if not can_buy:
+            logger.info(f"BUY blocked: {position_capital}")
+            return False
         if position_capital < self.min_order_value:
             logger.warning(f"Position too small: ${position_capital:.2f}")
             return False
