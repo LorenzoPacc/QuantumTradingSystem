@@ -1,4 +1,14 @@
 import logging
+
+# ═══════════════════════════════════════════════════════════════════
+# 🆕 ENHANCED MODULES - Organic Growth
+# ═══════════════════════════════════════════════════════════════════
+import sys
+sys.path.insert(0, 'enhanced_modules')
+from enhanced_modules.decision_logger import DecisionLogger
+from enhanced_modules.trade_analyzer import TradeAnalyzer
+from enhanced_modules.confluence_scorer import ConfluenceScorer
+
 from fix_confidence_now import CriticalFixes
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
@@ -38,6 +48,87 @@ except ImportError as e:
     print(f"⚠️  Regime patch non disponibile: {e}")
     
 import ccxt
+
+import math, json
+from pathlib import Path
+
+class AdaptiveLearning:
+    def __init__(self):
+        self.memory_file = Path("quantum_memory.json")
+        self.winning_patterns = {}
+        self.losing_patterns = {}
+    
+    def get_required_confluence(self, fear, rsi, change):
+        if fear <= 25:
+            # EXTREME FEAR → sempre 2 punti!
+            if rsi < 30 and change < -2:
+                return (2, "PANIC BUY")
+            else:
+                return (2, "EXTREME_FEAR")
+        elif fear <= 45:
+            return (3, "FEAR")
+        elif fear <= 55:
+            return (4, "NEUTRAL")
+        else:
+            return (5, "GREED")
+    
+    def get_bonus(self):
+        return (1.0, "Nuovo")
+
+
+    def get_adaptive_multiplier(self, conditions):
+        """Position sizing multiplier"""
+        pattern_key = self._create_pattern_key(conditions)
+        win_data = self.winning_patterns.get(pattern_key)
+        loss_data = self.losing_patterns.get(pattern_key)
+        if not win_data and not loss_data:
+            return 1.0
+        win_count = win_data["count"] if win_data else 0
+        loss_count = loss_data["count"] if loss_data else 0
+        total = win_count + loss_count
+        if total < 3:
+            return 1.0
+        win_rate = win_count / total
+        if win_rate >= 0.70:
+            return 1.5
+        elif win_rate >= 0.60:
+            return 1.3
+        elif win_rate >= 0.50:
+            return 1.1
+        elif win_rate >= 0.40:
+            return 0.9
+        else:
+            return 0.7
+
+    def should_skip_trade(self, conditions):
+        """Skip bad patterns"""
+        pattern_key = self._create_pattern_key(conditions)
+        loss_data = self.losing_patterns.get(pattern_key)
+        if not loss_data:
+            return False
+        loss_count = loss_data["count"]
+        win_data = self.winning_patterns.get(pattern_key)
+        win_count = win_data["count"] if win_data else 0
+        total = win_count + loss_count
+        if total >= 5 and (win_count / total) < 0.30:
+            return True
+        return False
+
+    def _create_pattern_key(self, conditions):
+        """Create pattern key from conditions"""
+        fear = conditions.get("fear", 50)
+        rsi = conditions.get("rsi", 50)
+        change = conditions.get("price_change", 0)
+        
+        f_bucket = "extreme_fear" if fear < 25 else "fear" if fear < 45 else "neutral"
+        r_bucket = "oversold" if rsi < 30 else "low" if rsi < 45 else "neutral"
+        c_bucket = "dump" if change < -3 else "down" if change < -1 else "flat"
+        
+        return f"{f_bucket}_{r_bucket}_{c_bucket}"
+
+
+adaptive_learning = AdaptiveLearning()
+
 import time
 import json
 import os
@@ -110,12 +201,22 @@ class QuantumTraderV33UltimateFinal:
         api_secret = os.getenv("BINANCE_SECRET", "")
 
         self.exchange = ccxt.binance({
+
             "apiKey": api_key,
             "secret": api_secret,
             "enableRateLimit": True,
             "options": {"defaultType": "spot"},
             "timeout": 30000  # Increased to 30 seconds
         })
+
+        # ═══════════════════════════════════════════════════════════════════
+        # 🆕 ENHANCED MODULES
+        # ═══════════════════════════════════════════════════════════════════
+        self.decision_logger = DecisionLogger()
+        self.trade_analyzer = TradeAnalyzer()
+        self.confluence_scorer = ConfluenceScorer(min_score=4)
+        logging.info("✅ Enhanced modules initialized")
+
 
         # symbols & timeframe
         self.symbols = [
@@ -284,26 +385,122 @@ class QuantumTraderV33UltimateFinal:
         
         thresholds = {
             "DOWNTREND_EXTREME": {
-                "tp": 1.5, "sl": -2.0, "stale": 24,
-                "trail_min": 1.5, "trail_lock": 0.6
+                "tp": 2.0, "sl": -1.8, "stale": 18,
+                "trail_min": 0.8, "trail_lock": 0.70
             },
             "DOWNTREND_MODERATE": {
-                "tp": 2.0, "sl": -2.5, "stale": 30,
-                "trail_min": 2.0, "trail_lock": 0.65
+                "tp": 2.5, "sl": -2.0, "stale": 24,
+                "trail_min": 1.0, "trail_lock": 0.75
             },
             "SIDEWAYS_FEAR": {
                 "tp": 3.0, "sl": -3.0, "stale": 48,
                 "trail_min": 2.5, "trail_lock": 0.7
             },
             "NORMAL": {
-                "tp": 5.0, "sl": -3.0, "stale": 72,
-                "trail_min": 3.0, "trail_lock": 0.7
+                "tp": 4.0, "sl": -2.5, "stale": 48,
+                "trail_min": 1.5, "trail_lock": 0.75
             }
         }
         
         cfg = thresholds.get(regime, thresholds["NORMAL"])
         logging.info(f"⚙️  ADAPTIVE: TP={cfg['tp']}% SL={cfg['sl']}% Stale={cfg['stale']}h")
         return cfg
+
+    def analyze_multi_timeframe(self, symbol):
+        """
+        Analizza trend su multiple timeframe
+        Returns: (aligned, score, details)
+        """
+        try:
+            timeframes = {
+                '15m': {'weight': 1, 'periods': 50},
+                '1h': {'weight': 2, 'periods': 100},
+                '4h': {'weight': 3, 'periods': 50}
+            }
+            
+            mtf_score = 0
+            max_score = sum(tf['weight'] for tf in timeframes.values())
+            details = {}
+            
+            for tf_name, tf_config in timeframes.items():
+                try:
+                    # Get OHLCV data
+                    ohlcv = self.exchange.fetch_ohlcv(
+                        symbol, 
+                        tf_name, 
+                        limit=tf_config['periods']
+                    )
+                    
+                    if not ohlcv or len(ohlcv) < 20:
+                        continue
+                    
+                    import pandas as pd
+                    import ta
+                    
+                    df = pd.DataFrame(ohlcv, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
+                    
+                    # RSI
+                    df['rsi'] = ta.momentum.RSIIndicator(df['close'], window=14).rsi()
+                    rsi = df['rsi'].iloc[-1]
+                    
+                    # SMA trend
+                    df['sma_20'] = df['close'].rolling(20).mean()
+                    df['sma_50'] = df['close'].rolling(50).mean() if len(df) >= 50 else df['close'].rolling(20).mean()
+                    
+                    price = df['close'].iloc[-1]
+                    sma_20 = df['sma_20'].iloc[-1]
+                    sma_50 = df['sma_50'].iloc[-1]
+                    
+                    # Trend detection
+                    bullish = 0
+                    
+                    # 1. Price above SMAs
+                    if price > sma_20:
+                        bullish += 0.3
+                    if price > sma_50:
+                        bullish += 0.3
+                    
+                    # 2. SMA alignment (20 > 50 = uptrend)
+                    if sma_20 > sma_50:
+                        bullish += 0.2
+                    
+                    # 3. RSI not overbought
+                    if 30 < rsi < 70:
+                        bullish += 0.2
+                    elif rsi < 30:
+                        bullish += 0.3  # Oversold = potential bounce
+                    
+                    # Score this timeframe
+                    if bullish >= 0.6:  # Bullish
+                        mtf_score += tf_config['weight']
+                        trend = "BULLISH"
+                    elif bullish <= 0.4:  # Bearish
+                        trend = "BEARISH"
+                    else:
+                        trend = "NEUTRAL"
+                        mtf_score += tf_config['weight'] * 0.5
+                    
+                    details[tf_name] = {
+                        'trend': trend,
+                        'rsi': rsi,
+                        'bullish_score': bullish,
+                        'price_vs_sma20': (price - sma_20) / sma_20 * 100
+                    }
+                    
+                except Exception as e:
+                    logger.debug(f"MTF {tf_name} error: {e}")
+                    continue
+            
+            # Calculate final alignment
+            alignment_pct = (mtf_score / max_score) * 100
+            aligned = alignment_pct >= 60  # 60%+ alignment = good
+            
+            return aligned, alignment_pct, details
+            
+        except Exception as e:
+            logger.error(f"MTF analysis error: {e}")
+            return False, 0, {}
+
 
     def _setup_lock(self):
         if os.path.exists(self.lock_file):
@@ -761,14 +958,15 @@ class QuantumTraderV33UltimateFinal:
     # -------------------------
     # Buy/sell/check logic
     # -------------------------
-    def check_buy(self, symbol):
+    def check_buy(self, symbol, fear_index=50):
         # Detect regime per adaptive thresholds
         regime = self.detect_market_regime()
         """✅ FIXED: Usa get_symbol_data() + CriticalFixes"""
         # Get price
         # ✅ Check max positions FIRST
         if len(self.state['positions']) >= self.max_positions:
-            return False, f"Max positions reached ({self.max_positions})"
+            return False, 0  # Max positions reached
+    
 
         price = self.get_price(symbol)
         if price is None:
@@ -813,6 +1011,73 @@ class QuantumTraderV33UltimateFinal:
             price_change_24h = 0
         
         # ✅ USA CRITICALFIXES
+
+        # 🧠 ADAPTIVE SYSTEM
+        req, reason = adaptive_learning.get_required_confluence(fear_index, rsi, price_change_24h)
+        score = 0
+        if fear_index <= 25: score += 2
+        elif fear_index <= 45: score += 1
+        if rsi < 30: score += 2
+        elif rsi < 40: score += 1
+        if price_change_24h < -3: score += 1
+        elif price_change_24h < -1: score += 0.5
+        
+        
+        # Define conditions for learning
+        conditions = {
+            'fear': fear_index,
+            'rsi': rsi,
+            'price_change': price_change_24h
+        }
+        
+        should_buy_adaptive = score >= req
+        
+        # 🧠 LEARNING: Skip bad patterns
+        if adaptive_learning.should_skip_trade(conditions):
+            logger.info(f"🚫 {symbol} SKIPPED by learning (pattern WR < 30%)")
+            return False, "LEARNING_SKIP"
+        
+        
+        # 📊 MULTI-TIMEFRAME CHECK
+        mtf_aligned, mtf_score, mtf_details = self.analyze_multi_timeframe(symbol)
+        
+        logger.info(f"📊 {symbol} MTF Analysis:")
+        for tf, data in mtf_details.items():
+            logger.info(f"   {tf}: {data['trend']} (RSI:{data['rsi']:.1f}, Score:{data['bullish_score']:.2f})")
+        logger.info(f"   Alignment: {mtf_score:.0f}% {'✅ PASS' if mtf_aligned else '❌ FAIL'}")
+        # Track MTF stats
+        if 'mtf_checks' not in self.state:
+            self.state['mtf_checks'] = {'aligned': 0, 'total': 0}
+        self.state['mtf_checks']['total'] += 1
+        if mtf_aligned:
+            self.state['mtf_checks']['aligned'] += 1
+        
+        # Require MTF alignment per Fear level
+        mtf_required = fear_index <= 35  # Solo in Fear/Extreme Fear
+        
+        if mtf_required and not mtf_aligned:
+            logger.info(f"❌ {symbol} MTF not aligned ({mtf_score:.0f}% < 60%)")
+            return False, f"MTF_FAIL(alignment={mtf_score:.0f}%)"
+        
+        # Bonus per strong alignment
+        if mtf_score >= 80:
+            score += 0.5
+            logger.info(f"✨ {symbol} MTF bonus: +0.5 (strong alignment)")
+        
+
+        # 🧠 LEARNING: Get size multiplier
+        size_multiplier = adaptive_learning.get_adaptive_multiplier(conditions)
+        if size_multiplier != 1.0:
+            logger.info(f"📊 {symbol} Learning multiplier: {size_multiplier:.2f}x")
+        conf_adaptive = min(95, score * 15)
+        
+        logger.info(f"🔍 {symbol} | Fear={fear_index} RSI={rsi:.1f} Change={price_change_24h:+.1f}% | Req={req}({reason}) Score={score:.1f} | {'✅BUY' if should_buy_adaptive else '❌SKIP'}")
+        
+        # Override con adaptive
+        if should_buy_adaptive:
+            return True, f"ADAPTIVE_BUY(score={score:.1f})"
+        
+        # Altrimenti continua con logica originale
         should_trade, confidence, score_info = self.fixes.fix_confidence_threshold(
             fg=fear_index,
             rsi=rsi,
@@ -835,6 +1100,35 @@ class QuantumTraderV33UltimateFinal:
         
         # Ricalcola should_trade DOPO fear bonus
         should_trade = confidence >= min_conf
+
+        # ═══════════════════════════════════════════════════════════════
+        # 🆕 CONFLUENCE CHECK
+        # ═══════════════════════════════════════════════════════════════
+        confidence_base = confidence / (1.25 if fear_index < 30 else 1.15 if fear_index < 45 else 1.0)
+        confluence_passed, conf_score, conf_reasons = self.confluence_scorer.calculate_score(
+            symbol, fear_index, rsi, price_change_24h, 1.0
+        )
+        if not confluence_passed:
+            skip_reason = f"Confluence failed: {conf_score}/7"
+            self.decision_logger.log_buy_decision(
+                symbol=symbol, fear_greed=fear_index, rsi=rsi, 
+                price_change_24h=price_change_24h,
+                confidence_base=confidence_base, confidence_final=confidence, 
+                threshold=min_conf,
+                fear_bonus_applied="+25%" if fear_index < 30 else "+15%" if fear_index < 45 else "None",
+                decision="SKIP", skip_reason=skip_reason
+            )
+            logging.info(f"❌ {symbol}: {skip_reason}")
+            return False, skip_reason
+        self.decision_logger.log_buy_decision(
+            symbol=symbol, fear_greed=fear_index, rsi=rsi,
+            price_change_24h=price_change_24h,
+            confidence_base=confidence_base, confidence_final=confidence,
+            threshold=min_conf,
+            fear_bonus_applied="+25%" if fear_index < 30 else "+15%" if fear_index < 45 else "None",
+            decision="BUY" if should_trade else "CHECK", skip_reason=None
+        )
+
         
         if should_trade:
             reason = f"BUY (Conf: {confidence:.0f}%) | {score_info}"
@@ -1154,7 +1448,7 @@ class QuantumTraderV33UltimateFinal:
             for symbol in self.symbols:
                 if symbol not in self.state["positions"]:
                     try:
-                        should_buy, reason = self.check_buy(symbol)
+                        should_buy, reason = self.check_buy(symbol, fear_index)
                         logger.info(f"{symbol}: {reason}")
                         if should_buy:
                             if self.buy(symbol):
@@ -1184,6 +1478,13 @@ class QuantumTraderV33UltimateFinal:
         logger.info(f"   Total Fees Paid: ${total_fees:.4f}")
         logger.info(f"   Max Drawdown: {self.state.get('max_drawdown', 0.0)*100:.2f}%")
         logger.info(f"   Trades: {trades} | Win Rate: {win_rate:.1f}%")
+        
+        # 📊 MTF Alignment Stats
+        mtf_checks = self.state.get('mtf_checks', {'aligned': 0, 'total': 0})
+        if mtf_checks.get('total', 0) > 0:
+            alignment_rate = (mtf_checks['aligned'] / mtf_checks['total']) * 100
+            logger.info(f"   📊 MTF Alignment Rate: {alignment_rate:.1f}% ({mtf_checks['aligned']}/{mtf_checks['total']})")
+
         logger.info(f"   Positions: {len(self.state['positions'])}/{self.max_positions}")
         logger.info(f"   Cycle Actions: BUY={buy_count}, SELL={sell_count}")
         
