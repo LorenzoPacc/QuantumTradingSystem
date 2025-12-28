@@ -1,0 +1,11 @@
+#!/bin/bash
+echo "🔍 Verifying installation..."
+echo ""
+echo "Files check:"
+[ -f "strategy.py" ] && echo "✅ strategy.py" || echo "❌ strategy.py"
+[ -f "backtest.py" ] && echo "✅ backtest.py" || echo "❌ backtest.py"
+[ -f "run.py" ] && echo "✅ run.py" || echo "❌ run.py"
+[ -f "config/config.yaml" ] && echo "✅ config.yaml" || echo "❌ config.yaml"
+echo ""
+echo "Quick test:"
+cd crypto_bot 2>/dev/null && python3 -c "import yaml; import pandas; print('✅ Dependencies OK')" || echo "⚠️  Install dependencies: pip install -r requirements.txt"

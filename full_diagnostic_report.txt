@@ -1,0 +1,46 @@
+QUANTUM TRADING V34 - FULL DIAGNOSTIC REPORT
+============================================================
+Generated: $(date)
+
+EXECUTIVE SUMMARY:
+
+PERFORMANCE DATA:
+2025-12-27 15:37:09,474 - INFO -    Trades: 188 | Win Rate: 37.2%
+2025-12-27 15:39:26,907 - INFO -    Total PnL: $-40.36 (-20.18%)
+2025-12-27 15:39:26,907 - INFO -    Trades: 188 | Win Rate: 37.2%
+
+DETAILED ANALYSIS:
+DIAGNOSTIC REPORT - 2025-12-27 15:40:24.562236
+======================================================================
+
+Total PnL: $-40.36
+Win Rate: 37.2%
+Trades: 188
+Expectancy: $-0.2112
+Profit Factor: 0.29
+Edge Status: NEGATIVE
+
+MTF ANALYSIS:
+
+📊 MTF FILTERING ANALYSIS
+======================================================================
+
+🚫 MTF Failures per Coin:
+   BNB/USDT: 201 failures, avg alignment: 13.0%
+   SOL/USDT: 197 failures, avg alignment: 6.9%
+   MATIC/USDT: 197 failures, avg alignment: 58.0%
+   LINK/USDT: 197 failures, avg alignment: 6.1%
+   DOT/USDT: 30 failures, avg alignment: 34.8%
+
+📈 Average MTF Alignment: 21.4%
+   Current threshold: 60%
+   Con threshold 40%: 202/822 passerebbero (24.6%)
+   Con threshold 45%: 202/822 passerebbero (24.6%)
+   Con threshold 50%: 202/822 passerebbero (24.6%)
+   Con threshold 55%: 197/822 passerebbero (24.0%)
+   Con threshold 60%: 0/822 passerebbero (0.0%)
+
+💡 RACCOMANDAZIONE MTF:
+   ⚠️  MTF threshold 60% è TROPPO RIGIDO
+   ✅ Prova threshold 40-45% per più opportunità
+======================================================================

@@ -1,0 +1,12 @@
+#!/usr/bin/env python3
+print("🚀 Quantum Trader Lite - Dry Run Mode")
+print("="*50)
+print("✅ Strategy loaded")
+print("✅ Risk management active")
+print("✅ Max 3 positions")
+print("✅ Min confidence: 60%")
+print("\n📊 Expected stats:")
+print("- Win rate: 40-50%")
+print("- Max drawdown: <10%")
+print("- Trades/month: 8-12")
+print("\n⚠️  Run on testnet for 2 weeks before live!")

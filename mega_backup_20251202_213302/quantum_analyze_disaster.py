@@ -1,0 +1,33 @@
+#!/usr/bin/env python3
+"""
+ANALISI DISASTRO: Cosa è successo ai $10,000
+"""
+
+print("🔍 ANALISI CATASTROFE $10,000 → $0.18")
+print("=" * 50)
+print("")
+print("❌ PROBLEMI IDENTIFICATI:")
+print("")
+print("1. 🎯 SEGNALE SEMPRE 'BUY'")
+print("   Il codice originale aveva:")
+print("   def get_signal(self, symbol):")
+print("       return 'BUY'  # ← SEMPRE COMPRA!")
+print("")
+print("2. 🔁 LOOP INFINITO DI ACQUISTI")
+print("   - Il trader comprava continuamente")
+print("   - Senza logica di uscita")
+print("   - Senza stop loss")
+print("")
+print("3. 💸 POSITION SIZE ERRATO")
+print("   - 50% del balance ogni trade")
+print("   - Con sempre 'BUY', hai comprato fino a:")
+print("     $10,000 → $5,000 → $2,500 → $1,250 → ...")
+print("")
+print("4. 📉 PREZZI REALI vs TESTNET")
+print("   - I prezzi TestNet sono reali")
+print("   - Se il mercato scendeva, perdevi soldi veri (in TestNet)")
+print("")
+print("💥 RISULTATO: Hai probabilmente:")
+print("   - Acquisto continuo in discesa")
+print("   - Perdite accumulate")
+print("   - Assets bloccati in posizioni perdenti")

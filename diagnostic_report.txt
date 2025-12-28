@@ -1,0 +1,9 @@
+DIAGNOSTIC REPORT - 2025-12-27 15:42:14.354974
+======================================================================
+
+Total PnL: $-40.34
+Win Rate: 37.2%
+Trades: 188
+Expectancy: $-0.2110
+Profit Factor: 0.29
+Edge Status: NEGATIVE

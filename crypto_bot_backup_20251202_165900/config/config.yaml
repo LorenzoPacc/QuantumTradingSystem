@@ -1,0 +1,80 @@
+# ============================================================================
+# CONFIG OTTIMIZZATA PER BOT DA $200
+# ============================================================================
+
+capital:
+  initial: 200.0
+  min_trade_size: 15.0  # Minimo $15 per trade (evita dust)
+  
+exchange:
+  name: binance
+  testnet: true  # IMPORTANTE: Inizia con testnet!
+  commission: 0.001  # 0.1% Binance
+
+symbols:
+  # Solo top crypto liquide (spread bassi)
+  - BTC/USDT
+  - ETH/USDT
+  - BNB/USDT
+  - SOL/USDT
+
+strategy:
+  # Parametri conservativi per capitale ridotto
+  rsi:
+    oversold: 35
+    overbought: 70
+    extreme_oversold: 25
+    extreme_overbought: 80
+  
+  fear_greed:
+    extreme_fear: 25
+    fear: 45
+    greed: 55
+    extreme_greed: 75
+  
+  position_sizing:
+    max_positions: 3  # Solo 3 posizioni simultanee con $200
+    base_size_pct: 0.20  # 20% del capitale per trade
+    max_size_pct: 0.33   # Max 33% su singola posizione
+    min_confidence: 60   # ✅ FIX: Non tradare sotto 60% confidence
+  
+  risk_management:
+    stop_loss:
+      day_0_2: -3    # Primi 2 giorni: -3%
+      day_2_7: -5    # Giorni 2-7: -5%
+      day_7_plus: -7 # Dopo 7 giorni: -7%
+    
+    take_profit:
+      tp1: 15  # +15% sempre
+      tp2: 10  # +10% se RSI > 75
+      tp3: 5   # +5% se RSI > 80
+    
+    trailing_stop:
+      activation: 8       # Attiva a +8%
+      protection: 0.6     # Proteggi 60% del gain (era 50%)
+
+  trend:
+    ema_fast: 9
+    ema_slow: 21
+    min_separation_pct: 2  # EMA devono essere separate >2%
+
+alerts:
+  telegram:
+    enabled: false
+    bot_token: ""
+    chat_id: ""
+  
+  console:
+    enabled: true
+    verbose: true
+
+backtest:
+  start_date: "2024-06-01"
+  end_date: "2024-12-01"
+  slippage_pct: 0.0005
+  
+logging:
+  level: INFO
+  file: logs/bot.log
+  max_bytes: 10485760  # 10MB
+  backup_count: 5

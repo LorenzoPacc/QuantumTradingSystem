@@ -1,0 +1,25 @@
+capital:
+  initial: 200.0
+  
+exchange:
+  name: binance
+  testnet: true
+  
+strategy:
+  rsi:
+    oversold: 35
+    overbought: 70
+  
+  position_sizing:
+    max_positions: 3
+    base_size_pct: 0.20
+    min_confidence: 60
+  
+  risk_management:
+    stop_loss:
+      day_0_2: -3
+      day_2_7: -5
+    
+    take_profit:
+      tp1: 15
+      tp2: 10

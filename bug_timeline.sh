@@ -1,0 +1,208 @@
+#!/bin/bash
+
+LOG_FILE="quantum_v33_ultimate_final.log"
+
+echo "╔══════════════════════════════════════════════════════════════╗"
+echo "║        🔍 BUG TIMELINE ANALYSIS - CURRENT vs OLD            ║"
+echo "╚══════════════════════════════════════════════════════════════╝"
+echo ""
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# 1. ULTIMO ERROR NEL LOG
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "📅 1. ULTIMO ERROR REGISTRATO"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+LAST_ERROR=$(grep " - ERROR - " "$LOG_FILE" | tail -1)
+
+if [ -z "$LAST_ERROR" ]; then
+    echo "✅ NESSUN ERROR NEL LOG!"
+else
+    LAST_ERROR_DATE=$(echo "$LAST_ERROR" | awk '{print $1, $2}')
+    LAST_ERROR_MSG=$(echo "$LAST_ERROR" | cut -d'-' -f4-)
+    
+    echo "   📍 Data: $LAST_ERROR_DATE"
+    echo "   📝 Messaggio:$LAST_ERROR_MSG"
+    echo ""
+    
+    LAST_ERROR_TS=$(date -d "$LAST_ERROR_DATE" +%s 2>/dev/null || echo "0")
+    NOW_TS=$(date +%s)
+    AGE_SECONDS=$((NOW_TS - LAST_ERROR_TS))
+    AGE_HOURS=$((AGE_SECONDS / 3600))
+    AGE_DAYS=$((AGE_HOURS / 24))
+    
+    if [ $AGE_HOURS -lt 1 ]; then
+        echo "   ⏰ Età: $((AGE_SECONDS / 60)) minuti fa ⚠️ RECENTE!"
+    elif [ $AGE_HOURS -lt 24 ]; then
+        echo "   ⏰ Età: $AGE_HOURS ore fa ⚠️ OGGI"
+    else
+        echo "   ⏰ Età: $AGE_DAYS giorni fa ✅ VECCHIO"
+    fi
+fi
+
+echo ""
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# 2. ERRORI NELLE ULTIME 24H (VERE)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "⏰ 2. ERRORI ULTIME 24 ORE (da ora - 24h)"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+CUTOFF_TS=$(date -d '24 hours ago' '+%Y-%m-%d %H:%M:%S')
+ERRORS_24H=$(grep " - ERROR - " "$LOG_FILE" | awk -v cutoff="$CUTOFF_TS" '$1" "$2 >= cutoff' | wc -l)
+
+echo "   📊 Errori nelle ultime 24h: $ERRORS_24H"
+echo "   ⏰ Cutoff: $CUTOFF_TS"
+
+if [ $ERRORS_24H -eq 0 ]; then
+    echo "   ✅ ZERO ERRORI! Bot pulito ✨"
+elif [ $ERRORS_24H -lt 5 ]; then
+    echo "   ⚠️  Pochi errori, probabilmente transitori"
+else
+    echo "   🚨 TROPPI ERRORI! Problema attivo"
+    echo ""
+    echo "   🔍 Ultimi 3 errori (nelle vere ultime 24h):"
+    grep " - ERROR - " "$LOG_FILE" | awk -v cutoff="$CUTOFF_TS" '$1" "$2 >= cutoff' | tail -3 | while read line; do
+        ERROR_DATE=$(echo "$line" | awk '{print $1, $2}')
+        ERROR_MSG=$(echo "$line" | cut -d'-' -f4- | cut -c1-80)
+        echo "      • $ERROR_DATE:$ERROR_MSG"
+    done
+fi
+
+echo ""
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# 3. BREAKDOWN ERRORI (ultimi 7 giorni)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "📋 3. BREAKDOWN ERRORI (ultimi 7 giorni)"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+WEEK_AGO=$(date -d '7 days ago' '+%Y-%m-%d')
+
+echo ""
+echo "   🔴 TUPLE COMPARISON BUG:"
+TUPLE_ERRORS=$(grep " - ERROR - " "$LOG_FILE" | awk -v d="$WEEK_AGO" '$1 >= d' | grep -c "not supported between instances of 'tuple' and 'float'" || echo "0")
+TUPLE_LAST=$(grep " - ERROR - " "$LOG_FILE" | grep "not supported between instances of 'tuple' and 'float'" | tail -1 | awk '{print $1, $2}')
+echo "      Count: $TUPLE_ERRORS"
+if [ -n "$TUPLE_LAST" ]; then
+    echo "      Last: $TUPLE_LAST"
+else
+    echo "      Last: MAI (✅ non presente)"
+fi
+
+echo ""
+echo "   🔴 NONETYPE UNPACK BUG:"
+NONE_ERRORS=$(grep " - ERROR - " "$LOG_FILE" | awk -v d="$WEEK_AGO" '$1 >= d' | grep -c "cannot unpack non-iterable NoneType object" || echo "0")
+NONE_LAST=$(grep " - ERROR - " "$LOG_FILE" | grep "cannot unpack non-iterable NoneType object" | tail -1 | awk '{print $1, $2}')
+echo "      Count: $NONE_ERRORS"
+if [ -n "$NONE_LAST" ]; then
+    echo "      Last: $NONE_LAST"
+else
+    echo "      Last: MAI (✅ non presente)"
+fi
+
+echo ""
+echo "   🔴 ATTRIBUTE ERROR (cash):"
+ATTR_ERRORS=$(grep " - ERROR - " "$LOG_FILE" | awk -v d="$WEEK_AGO" '$1 >= d' | grep -c "has no attribute 'cash'" || echo "0")
+ATTR_LAST=$(grep " - ERROR - " "$LOG_FILE" | grep "has no attribute 'cash'" | tail -1 | awk '{print $1, $2}')
+echo "      Count: $ATTR_ERRORS"
+if [ -n "$ATTR_LAST" ]; then
+    echo "      Last: $ATTR_LAST"
+else
+    echo "      Last: MAI (✅ non presente)"
+fi
+
+echo ""
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# 4. TIMELINE ERRORI (ogni giorno)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "📊 4. TIMELINE ERRORI (ultimi 7 giorni)"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo ""
+
+for i in {6..0}; do
+    CHECK_DATE=$(date -d "$i days ago" '+%Y-%m-%d')
+    ERROR_COUNT=$(grep " - ERROR - " "$LOG_FILE" | grep "^$CHECK_DATE" | wc -l)
+    
+    BAR=""
+    for j in $(seq 1 $((ERROR_COUNT / 10))); do
+        BAR="${BAR}█"
+    done
+    
+    if [ $ERROR_COUNT -eq 0 ]; then
+        STATUS="✅"
+    elif [ $ERROR_COUNT -lt 10 ]; then
+        STATUS="⚠️ "
+    else
+        STATUS="🚨"
+    fi
+    
+    printf "   %s %s: %3d errors %s\n" "$STATUS" "$CHECK_DATE" "$ERROR_COUNT" "$BAR"
+done
+
+echo ""
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# 5. ULTIMI 10 CICLI
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "🔄 5. ULTIMI 10 CICLI - CHECK ERRORI"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo ""
+
+grep "CYCLE [0-9]* -" "$LOG_FILE" | tail -10 | while read cycle_line; do
+    CYCLE_NUM=$(echo "$cycle_line" | grep -oP 'CYCLE \K[0-9]+')
+    CYCLE_DATE=$(echo "$cycle_line" | awk '{print $1, $2}')
+    
+    NEXT_CYCLE=$((CYCLE_NUM + 1))
+    ERRORS_IN_CYCLE=$(awk "/CYCLE $CYCLE_NUM /,/CYCLE $NEXT_CYCLE / {if (/ERROR/) print}" "$LOG_FILE" | wc -l)
+    
+    if [ $ERRORS_IN_CYCLE -eq 0 ]; then
+        echo "   ✅ CYCLE $CYCLE_NUM ($CYCLE_DATE) - Clean"
+    else
+        echo "   🚨 CYCLE $CYCLE_NUM ($CYCLE_DATE) - $ERRORS_IN_CYCLE errors!"
+    fi
+done
+
+echo ""
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# 6. VERDETTO FINALE
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "🎯 VERDETTO FINALE"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo ""
+
+if [ $ERRORS_24H -eq 0 ]; then
+    echo "╔══════════════════════════════════════════════════════════════╗"
+    echo "║  ✅ BOT PULITO - ZERO ERRORI NELLE ULTIME 24H               ║"
+    echo "║                                                              ║"
+    echo "║  Tutti gli errori nell'audit sono VECCHI e RISOLTI.         ║"
+    echo "║  Il bot sta girando correttamente! 🚀                       ║"
+    echo "╚══════════════════════════════════════════════════════════════╝"
+elif [ $ERRORS_24H -lt 5 ]; then
+    echo "╔══════════════════════════════════════════════════════════════╗"
+    echo "║  ⚠️  ERRORI SPORADICI - $ERRORS_24H nelle ultime 24h                   ║"
+    echo "║                                                              ║"
+    echo "║  Probabilmente problemi di rete o API transitori.           ║"
+    echo "║  Monitora per altre 24h prima di agire.                     ║"
+    echo "╚══════════════════════════════════════════════════════════════╝"
+else
+    echo "╔══════════════════════════════════════════════════════════════╗"
+    echo "║  🚨 PROBLEMI ATTIVI - $ERRORS_24H errori nelle ultime 24h             ║"
+    echo "║                                                              ║"
+    echo "║  Il bot ha problemi ATTUALI che richiedono fix!             ║"
+    echo "║  Vedi sezione 3 per identificare il bug specifico.          ║"
+    echo "╚══════════════════════════════════════════════════════════════╝"
+fi
+
+echo ""
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "📅 Analysis completed: $(date)"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

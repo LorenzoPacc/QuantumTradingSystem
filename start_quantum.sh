@@ -2,7 +2,7 @@
 echo "🚀 AVVIO SISTEMA QUANTUM TRADING..."
 
 # Ferma processi esistenti
-pkill -f "python3 quantum_trader_stable.py" 2>/dev/null
+pkill -f "python3 quantum_v33_ultimate_final.py" 2>/dev/null
 pkill -f "python3 quantum_dashboard.py" 2>/dev/null
 sleep 3
 
@@ -18,7 +18,7 @@ sleep 5
 
 # Avvia trader
 echo "🤖 Avvio trader..."
-python3 quantum_trader_stable.py > trader.log 2>&1 &
+python3 quantum_v33_ultimate_final.py > trader.log 2>&1 &
 
 echo ""
 echo "✅ SISTEMA AVVIATO!"

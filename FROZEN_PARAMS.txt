@@ -1,0 +1,14 @@
+═══════════════════════════════════════
+PARAMETRI CONGELATI - NON TOCCARE
+Data freeze: $(date)
+═══════════════════════════════════════
+
+STRATEGIA: Mean Reversion Multi-Timeframe
+TP: 2.0%
+SL: -1.8%
+MTF Threshold: 40%
+Risk per Trade: 0.5%
+Max Positions: 5
+
+❌ Vietato modificare per 30 giorni
+✅ Solo test con questi parametri

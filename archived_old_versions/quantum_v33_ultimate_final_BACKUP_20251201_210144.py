@@ -1,0 +1,980 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+"""
+QUANTUM TRADER V3.3 ULTIMATE - VERSIONE FINALE MIGLIORATA
+- Sincronizzazione con exchange reale
+- Gestione fee corretta nel PnL
+- Validazione prezzi più conservativa
+- Recovery robusto da crash
+"""
+
+import ccxt
+import time
+import json
+import os
+import logging
+import numpy as np
+from datetime import datetime
+from math import isfinite
+from tempfile import NamedTemporaryFile
+import requests
+import atexit
+import sys
+from decimal import Decimal, ROUND_DOWN
+import shutil
+
+# -------------------------
+# Logging
+# -------------------------
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('quantum_v33_ultimate_final.log'),
+        logging.StreamHandler(sys.stdout)
+    ]
+)
+logger = logging.getLogger(__name__)
+
+# -------------------------
+# Utilities
+# -------------------------
+def atomic_write(path, data):
+    """Atomic write with optional backup"""
+    if os.path.exists(path):
+        try:
+            shutil.copy2(path, f"{path}.backup")
+        except Exception as e:
+            logger.debug(f"Backup creation failed: {e}")
+    tmp = NamedTemporaryFile('w', delete=False, dir=os.path.dirname(path) or '.')
+    try:
+        json.dump(data, tmp, indent=4)
+        tmp.flush()
+        os.fsync(tmp.fileno())
+        tmp.close()
+        os.replace(tmp.name, path)
+    except Exception:
+        try:
+            os.unlink(tmp.name)
+        except Exception:
+            pass
+        raise
+
+# -------------------------
+# Trader class
+# -------------------------
+class QuantumTraderV33UltimateFinal:
+    def __init__(self, initial_capital=200.0, dry_run=True):
+        if initial_capital < 10:
+            raise ValueError("Initial capital must be >= $10")
+
+        self.initial_capital = float(initial_capital)
+        self.dry_run = bool(dry_run)
+        self.state_file = "qv33_ultimate_final_state.json"
+        self.lock_file = "/tmp/quantum_v33_ultimate_final.lock"
+
+        # lock
+        self._setup_lock()
+
+        # exchange
+        api_key = os.getenv("BINANCE_API_KEY", "")
+        api_secret = os.getenv("BINANCE_SECRET", "")
+
+        self.exchange = ccxt.binance({
+            "apiKey": api_key,
+            "secret": api_secret,
+            "enableRateLimit": True,
+            "options": {"defaultType": "spot"},
+            "timeout": 30000  # Increased to 30 seconds
+        })
+
+                # symbols & timeframe  # ✅ SPOSTATO SOPRA
+        self.symbols = [
+            "BTC/USDT", "ETH/USDT", "BNB/USDT",
+            "SOL/USDT", "AVAX/USDT", "DOT/USDT",
+            "MATIC/USDT", "LINK/USDT"
+        ]
+        self.interval = "1h"
+
+        # market info container  # ✅ SPOSTATO SOTTO
+        self.market_info = {}
+        self._load_market_info()
+
+        # Fear & Greed
+        self.FG_EXTREME_FEAR = 25
+        self.FG_FEAR = 40
+        self.FG_NEUTRAL_LOW = 45
+        self.FG_NEUTRAL_HIGH = 55
+        self.FG_GREED = 65
+        self.FG_EXTREME_GREED = 75
+        self._fng_cache_ts = 0
+        self._fng_cache_value = 50
+        self._fng_cache_ttl = 600
+
+        # RSI
+        self.rsi_period = 14
+        self.RSI_EXTREME_OVERSOLD = 20
+        self.RSI_OVERSOLD = 30
+        self.RSI_NEUTRAL_LOW = 40
+        self.RSI_NEUTRAL_HIGH = 60
+        self.RSI_OVERBOUGHT = 70
+        self.RSI_EXTREME_OVERBOUGHT = 80
+
+        # SMA trend filter
+        self.USE_TREND_FILTER = True
+        self.SMA_FAST = 50
+        self.SMA_SLOW = 200
+
+        # dynamic TP
+        self.USE_DYNAMIC_TP = True
+        self.TAKE_PROFIT_MIN = 0.025
+        self.TAKE_PROFIT_EXTREME = 0.12
+        self.TAKE_PROFIT_FEAR = 0.08
+        self.TAKE_PROFIT_NORMAL = 0.05
+        self.TAKE_PROFIT_MAX = 0.15
+
+        # risk management
+        self.base_position_size = 0.20
+        self.max_position_size = 0.30
+        self.min_position_size = 0.10
+        self.stop_loss_pct = 0.025
+        self.stop_loss_extreme_fear = 0.035
+        self.trailing_trigger = 0.025
+        self.trailing_stop = 0.015
+        self.trailing_tight = 0.01
+        self.trailing_tight_threshold = 0.08
+        self.max_positions = 5
+        self.min_capital_per_trade = 12.0
+        self.min_order_value = 10.0
+        self.reserve_capital_pct = 0.15
+        self.reinvest_threshold = 0.10
+
+        # fees (default 0.1% => 0.001)
+        self.USE_BNB_DISCOUNT = bool(os.getenv("USE_BNB_DISCOUNT", "0") == "1")
+        self.trading_fee_pct = 0.00075 if self.USE_BNB_DISCOUNT else 0.001
+
+        # price validation - FIXED: more conservative
+        self.max_price_jump_factor = 2.0  # Reduced from 5.0 to 2.0
+        self.max_retry = 3
+        self.retry_backoff = 1.5
+        self.last_valid_price = {}
+
+        # state
+        self.state = {
+            "capital": float(initial_capital),
+            "total_invested": float(initial_capital),
+            "positions": {},
+            "last_action": None,
+            "total_trades": 0,
+            "winning_trades": 0,
+            "losing_trades": 0,
+            "cycle_count": 0,
+            "total_pnl": 0.0,
+            "total_fees_paid": 0.0,
+            "max_portfolio_value": float(initial_capital),
+            "max_drawdown": 0.0,
+            "fear_greed_history": [],
+            "trade_history": []
+        }
+        self.load_state()
+
+        logger.info("=" * 80)
+        logger.info("QUANTUM TRADER V3.3 ULTIMATE - INIZIALIZZATO")
+        logger.info(f" Mode: {'DRY-RUN' if self.dry_run else 'LIVE'} | Capital: ${self.initial_capital:.2f}")
+        logger.info(f" Trading fee: {self.trading_fee_pct*100:.3f}% (BNB discount: {self.USE_BNB_DISCOUNT})")
+        logger.info("=" * 80)
+
+    # -------------------------
+    # Lock management
+    # -------------------------
+    def _setup_lock(self):
+        if os.path.exists(self.lock_file):
+            try:
+                with open(self.lock_file, 'r') as f:
+                    old_pid = int(f.read().strip())
+                try:
+                    os.kill(old_pid, 0)
+                    logger.error(f"Instance already running! PID {old_pid}")
+                    sys.exit(1)
+                except OSError:
+                    os.remove(self.lock_file)
+            except Exception:
+                try:
+                    os.remove(self.lock_file)
+                except Exception:
+                    pass
+        with open(self.lock_file, 'w') as f:
+            f.write(str(os.getpid()))
+        atexit.register(lambda: os.remove(self.lock_file) if os.path.exists(self.lock_file) else None)
+
+    # -------------------------
+    # NEW: Exchange Sync
+    # -------------------------
+    def sync_with_exchange(self):
+        """Reconcile local state with actual exchange positions"""
+        if self.dry_run:
+            logger.info("Dry-run mode: skipping exchange sync")
+            return
+        
+        try:
+            logger.info("Syncing with exchange...")
+            balances = self.exchange.fetch_balance()
+            open_orders = self.exchange.fetch_open_orders()
+            
+            # Check actual USDT balance
+            actual_usdt = float(balances.get('USDT', {}).get('free', 0))
+            state_capital = float(self.state["capital"])
+            
+            if abs(actual_usdt - state_capital) > 1.0:  # >$1 difference
+                logger.warning(f"Capital mismatch! State: ${state_capital:.2f}, Exchange: ${actual_usdt:.2f}")
+                # Trust exchange for capital
+                self.state["capital"] = actual_usdt
+            
+            # Check for unknown positions on exchange
+            ghost_positions_found = False
+            for symbol in self.symbols:
+                base_currency = symbol.split('/')[0]
+                exchange_amount = float(balances.get(base_currency, {}).get('free', 0))
+                state_amount = float(self.state["positions"].get(symbol, {}).get("amount", 0))
+                
+                if exchange_amount > 0.0001 and symbol not in self.state["positions"]:
+                    logger.error(f"GHOST POSITION! {symbol}: {exchange_amount:.8f} on exchange but not in state")
+                    ghost_positions_found = True
+            
+            # Check for unfilled orders
+            if open_orders:
+                logger.warning(f"Found {len(open_orders)} open orders - cancelling...")
+                for order in open_orders:
+                    try:
+                        self.exchange.cancel_order(order['id'], order['symbol'])
+                        logger.info(f"Cancelled order: {order['id']}")
+                    except Exception as e:
+                        logger.error(f"Cancel failed: {e}")
+            
+            if ghost_positions_found:
+                logger.error("?? MANUAL CHECK REQUIRED - Ghost positions detected!")
+                # In production, you might want to exit here
+                # sys.exit(1)
+            else:
+                logger.info("? Sync complete - State consistent with exchange")
+            
+            self.save_state()
+            
+        except Exception as e:
+            logger.error(f"? Sync failed: {e}")
+            if not self.dry_run:
+                logger.error("?? MANUAL CHECK REQUIRED - Do not trade until resolved!")
+                # sys.exit(1)  # Uncomment for production safety
+
+    # -------------------------
+    # Market info
+    # -------------------------
+    def _load_market_info(self):
+        try:
+            markets = self.exchange.load_markets()
+            for symbol in self.symbols:
+                if symbol in markets:
+                    market = markets[symbol]
+                    self.market_info[symbol] = {
+                        'precision': {
+                            'amount': market.get('precision', {}).get('amount'),
+                            'price': market.get('precision', {}).get('price')
+                        },
+                        'limits': {
+                            'amount': {
+                                'min': market.get('limits', {}).get('amount', {}).get('min', 0.0),
+                                'max': market.get('limits', {}).get('amount', {}).get('max', None)
+                            },
+                            'cost': {
+                                'min': market.get('limits', {}).get('cost', {}).get('min', 0.0),
+                                'max': market.get('limits', {}).get('cost', {}).get('max', None)
+                            }
+                        }
+                    }
+                    logger.info(f"Market info loaded: {symbol}")
+        except Exception as e:
+            logger.warning(f"Could not load market info: {e}")
+
+    def _format_amount(self, symbol, amount):
+        if symbol not in self.market_info:
+            return round(float(amount), 8)
+        precision = self.market_info[symbol]['precision'].get('amount')
+        if precision is None:
+            return round(float(amount), 8)
+        decimal_amount = Decimal(str(amount))
+        if isinstance(precision, int) and precision >= 0:
+            quantize_str = '1.' + '0' * precision
+            quantize_val = Decimal(quantize_str)
+        else:
+            quantize_val = Decimal(str(precision))
+        formatted = float(decimal_amount.quantize(quantize_val, rounding=ROUND_DOWN))
+        return formatted
+
+    # -------------------------
+    # State management
+    # -------------------------
+    def load_state(self):
+        if os.path.exists(self.state_file):
+            try:
+                with open(self.state_file, 'r') as f:
+                    loaded = json.load(f)
+                    self.state.update(loaded)
+                logger.info(f"State loaded. Capital: ${self.state['capital']:.2f}")
+            except Exception as e:
+                logger.warning(f"State load failed: {e}")
+                backup = f"{self.state_file}.backup"
+                if os.path.exists(backup):
+                    try:
+                        with open(backup, 'r') as f:
+                            loaded = json.load(f)
+                            self.state.update(loaded)
+                        logger.info("Recovered state from backup")
+                    except Exception as e2:
+                        logger.error(f"Backup recover failed: {e2}")
+                        self.save_state()
+                else:
+                    self.save_state()
+        else:
+            self.save_state()
+
+    def save_state(self):
+        try:
+            atomic_write(self.state_file, self.state)
+        except Exception as e:
+            logger.error(f"Error saving state: {e}")
+
+    # -------------------------
+    # Fear & Greed
+    # -------------------------
+    def get_fear_greed_index(self):
+        now = time.time()
+        if (now - self._fng_cache_ts) < self._fng_cache_ttl:
+            return int(self._fng_cache_value)
+        try:
+            r = requests.get("https://api.alternative.me/fng/?limit=1", timeout=5)
+            if r.status_code == 200:
+                v = int(r.json()['data'][0]['value'])
+                self._fng_cache_value = v
+                self._fng_cache_ts = now
+                return v
+        except Exception as e:
+            logger.debug(f"FNG fetch failed: {e}")
+        return int(self._fng_cache_value)
+
+    # -------------------------
+    # Robust price fetching
+    # -------------------------
+    def get_price(self, symbol, retries=None):
+        if retries is None:
+            retries = self.max_retry
+        last_exc = None
+        for attempt in range(1, retries + 1):
+            try:
+                ticker = self.exchange.fetch_ticker(symbol)
+                price = None
+                if isinstance(ticker, dict):
+                    for key in ('last', 'close'):
+                        p = ticker.get(key)
+                        if p is not None and isfinite(p) and p > 0:
+                            price = float(p)
+                            break
+                    if price is None:
+                        bid = ticker.get('bid')
+                        ask = ticker.get('ask')
+                        if bid and ask and isfinite(bid) and isfinite(ask) and bid > 0 and ask > 0:
+                            price = float((float(bid) + float(ask)) / 2.0)
+                if price is None:
+                    ohlcv = self.exchange.fetch_ohlcv(symbol, self.interval, limit=3)
+                    if ohlcv and len(ohlcv) >= 1:
+                        last_close = ohlcv[-1][4]
+                        if last_close and isfinite(last_close) and last_close > 0:
+                            price = float(last_close)
+                if price is None or not isfinite(price) or price <= 0:
+                    raise ValueError(f"Invalid price: {price}")
+                # sanity vs median - FIXED: more conservative
+                try:
+                    ohlcv = self.exchange.fetch_ohlcv(symbol, self.interval, limit=20)
+                    closes = [c[4] for c in ohlcv if c[4] is not None and isfinite(c[4]) and c[4] > 0]
+                    if len(closes) >= 3:
+                        median = float(np.median(closes))
+                        if median > 0:
+                            if price > median * self.max_price_jump_factor or price < median / self.max_price_jump_factor:
+                                raise ValueError(f"Price sanity failed: {price:.6f} vs median {median:.6f}")
+                except Exception:
+                    pass
+                self.last_valid_price[symbol] = float(price)
+                return float(price)
+            except (ccxt.RequestTimeout, ccxt.DDoSProtection, ccxt.RateLimitExceeded) as e:
+                last_exc = e
+                sleep_time = self.retry_backoff ** attempt
+                logger.warning(f"Rate/timeout for {symbol}, retry {attempt}/{retries}, sleep {sleep_time:.1f}s")
+                time.sleep(sleep_time)
+            except Exception as e:
+                last_exc = e
+                logger.warning(f"Price fetch attempt {attempt}/{retries} for {symbol} failed: {e}")
+                if attempt < retries:
+                    time.sleep(self.retry_backoff ** attempt)
+        if symbol in self.last_valid_price:
+            logger.warning(f"Using cached price for {symbol}: ${self.last_valid_price[symbol]:.6f}")
+            return float(self.last_valid_price[symbol])
+        logger.error(f"get_price failed for {symbol}: {last_exc}")
+        return None
+
+    # -------------------------
+    # Indicators: RSI, ATR, SMA
+    # -------------------------
+    def compute_rsi(self, symbol, period=None):
+        if period is None:
+            period = self.rsi_period
+        try:
+            ohlcv = self.exchange.fetch_ohlcv(symbol, self.interval, limit=period + 50)
+            if not ohlcv or len(ohlcv) < period + 1:
+                return None
+            closes = np.array([c[4] for c in ohlcv], dtype=float)
+            deltas = np.diff(closes)
+            gains = np.where(deltas > 0, deltas, 0.0)
+            losses = np.where(deltas < 0, -deltas, 0.0)
+            avg_gain = np.mean(gains[:period])
+            avg_loss = np.mean(losses[:period])
+            for i in range(period, len(gains)):
+                avg_gain = (avg_gain * (period - 1) + gains[i]) / period
+                avg_loss = (avg_loss * (period - 1) + losses[i]) / period
+            if avg_loss == 0:
+                return 100.0
+            rs = avg_gain / avg_loss
+            rsi = 100.0 - (100.0 / (1.0 + rs))
+            return float(rsi)
+        except Exception as e:
+            logger.debug(f"RSI error {symbol}: {e}")
+            return None
+
+    def calculate_atr(self, symbol, period=14):
+        try:
+            ohlcv = self.exchange.fetch_ohlcv(symbol, self.interval, limit=period + 5)
+            if not ohlcv or len(ohlcv) < period + 1:
+                return 0.03
+            highs = [c[2] for c in ohlcv]
+            lows = [c[3] for c in ohlcv]
+            closes = [c[4] for c in ohlcv]
+            trs = []
+            for i in range(1, len(ohlcv)):
+                tr = max(
+                    highs[i] - lows[i],
+                    abs(highs[i] - closes[i-1]),
+                    abs(lows[i] - closes[i-1])
+                )
+                trs.append(tr)
+            atr = float(np.mean(trs[-period:]))
+            atr_pct = atr / float(closes[-1]) if closes[-1] != 0 else 0.03
+            return float(atr_pct)
+        except Exception as e:
+            logger.debug(f"ATR error {symbol}: {e}")
+            return 0.03
+
+    def is_trend_favorable(self, symbol):
+        if not self.USE_TREND_FILTER:
+            return True, "FILTER_DISABLED"
+        try:
+            limit = max(self.SMA_SLOW + 10, 220)
+            ohlcv = self.exchange.fetch_ohlcv(symbol, self.interval, limit=limit)
+            if not ohlcv or len(ohlcv) < self.SMA_FAST:
+                return True, "INSUFFICIENT_DATA"
+            closes = [x[4] for x in ohlcv]
+            current_price = float(closes[-1])
+            sma_fast = float(np.mean(closes[-self.SMA_FAST:]))
+            if len(closes) >= self.SMA_SLOW:
+                sma_slow = float(np.mean(closes[-self.SMA_SLOW:]))
+            else:
+                sma_slow = float(np.mean(closes))
+            if current_price > sma_fast and sma_fast > sma_slow:
+                return True, "STRONG_UPTREND"
+            elif current_price > sma_fast:
+                return True, "UPTREND"
+            elif current_price > sma_slow * 0.98:
+                return True, "SIDEWAYS"
+            else:
+                return False, "DOWNTREND"
+        except Exception as e:
+            logger.debug(f"Trend check error {symbol}: {e}")
+            return True, "ERROR"
+
+    # -------------------------
+    # Dynamic TP & sizing
+    # -------------------------
+    def calculate_dynamic_tp(self, symbol, entry_fear):
+        if not self.USE_DYNAMIC_TP:
+            return float(self.TAKE_PROFIT_FEAR if entry_fear < self.FG_EXTREME_FEAR else self.TAKE_PROFIT_NORMAL)
+        atr = self.calculate_atr(symbol)
+        if entry_fear < self.FG_EXTREME_FEAR:
+            base_tp = self.TAKE_PROFIT_EXTREME
+            atr_multiplier = 3.0
+        elif entry_fear < self.FG_FEAR:
+            base_tp = self.TAKE_PROFIT_FEAR
+            atr_multiplier = 2.5
+        elif entry_fear < self.FG_NEUTRAL_LOW:
+            base_tp = self.TAKE_PROFIT_NORMAL
+            atr_multiplier = 2.0
+        else:
+            base_tp = self.TAKE_PROFIT_NORMAL * 0.8
+            atr_multiplier = 1.5
+        atr_tp = atr * atr_multiplier
+        dynamic_tp = max(base_tp, atr_tp)
+        dynamic_tp = max(self.TAKE_PROFIT_MIN, min(dynamic_tp, self.TAKE_PROFIT_MAX))
+        return float(dynamic_tp)
+
+    def calculate_position_size(self, symbol, fear_index, rsi):
+        available_capital = float(self.state["capital"])
+        usable_capital = available_capital * (1 - self.reserve_capital_pct)
+        if usable_capital < self.min_capital_per_trade:
+            return 0.0
+        base_size = self.base_position_size
+        if fear_index < self.FG_EXTREME_FEAR:
+            fear_multiplier = 1.4
+        elif fear_index < self.FG_FEAR:
+            fear_multiplier = 1.2
+        elif fear_index > self.FG_EXTREME_GREED:
+            fear_multiplier = 0.6
+        elif fear_index > self.FG_GREED:
+            fear_multiplier = 0.8
+        else:
+            fear_multiplier = 1.0
+        if rsi is not None:
+            if rsi < self.RSI_EXTREME_OVERSOLD:
+                rsi_multiplier = 1.3
+            elif rsi < self.RSI_OVERSOLD:
+                rsi_multiplier = 1.15
+            elif rsi < self.RSI_NEUTRAL_LOW:
+                rsi_multiplier = 1.05
+            else:
+                rsi_multiplier = 0.9
+        else:
+            rsi_multiplier = 1.0
+        size_multiplier = fear_multiplier * rsi_multiplier
+        position_size_pct = base_size * size_multiplier
+        position_size_pct = max(self.min_position_size, min(position_size_pct, self.max_position_size))
+        position_capital = usable_capital * position_size_pct
+        return float(position_capital)
+
+    # -------------------------
+    # Reinvestment
+    # -------------------------
+    def check_reinvestment(self):
+        total_value = self.calculate_total()
+        total_invested = float(self.state.get("total_invested", self.initial_capital))
+        profit_pct = (total_value - total_invested) / total_invested
+        if profit_pct > self.reinvest_threshold:
+            reinvest_amount = (total_value - total_invested) * 0.5
+            self.state["total_invested"] = float(total_invested + reinvest_amount)
+            self.save_state()
+            logger.info(f"REINVEST: +${reinvest_amount:.2f} (New invested: ${self.state['total_invested']:.2f})")
+            return True
+        return False
+
+    # -------------------------
+    # Buy/sell/check logic
+    # -------------------------
+    def check_buy(self, symbol):
+        if len(self.state["positions"]) >= self.max_positions:
+            return False, "MAX_POSITIONS"
+        if self.state["capital"] < self.min_capital_per_trade:
+            return False, "LOW_CAPITAL"
+        if symbol in self.state["positions"]:
+            return False, "ALREADY_HOLDING"
+        price = self.get_price(symbol)
+        if price is None:
+            return False, "PRICE_ERROR"
+        rsi = self.compute_rsi(symbol)
+        if rsi is None:
+            return False, "RSI_ERROR"
+        fear_index = self.get_fear_greed_index()
+        if self.USE_TREND_FILTER:
+            trend_ok, trend_reason = self.is_trend_favorable(symbol)
+            if not trend_ok:
+                return False, f"TREND_{trend_reason}"
+        # Hybrid scenarios
+        if fear_index < self.FG_EXTREME_FEAR:
+            if rsi < self.RSI_EXTREME_OVERSOLD:
+                return True, f"EXTREME_FEAR + SUPER_OVERSOLD (F={fear_index}, RSI={rsi:.1f})"
+            elif rsi < self.RSI_OVERSOLD:
+                return True, f"EXTREME_FEAR + OVERSOLD (F={fear_index}, RSI={rsi:.1f})"
+            elif rsi < self.RSI_NEUTRAL_LOW:
+                return True, f"EXTREME_FEAR + NEUTRAL_RSI (F={fear_index}, RSI={rsi:.1f})"
+        elif fear_index < self.FG_FEAR:
+            if rsi < self.RSI_OVERSOLD:
+                return True, f"FEAR + OVERSOLD (F={fear_index}, RSI={rsi:.1f})"
+            elif rsi < self.RSI_NEUTRAL_LOW:
+                return True, f"FEAR + NEAR_OVERSOLD (F={fear_index}, RSI={rsi:.1f})"
+        elif fear_index < self.FG_NEUTRAL_HIGH:
+            if rsi < self.RSI_EXTREME_OVERSOLD:
+                return True, f"NEUTRAL + SUPER_OVERSOLD (RSI={rsi:.1f})"
+            elif rsi < self.RSI_OVERSOLD:
+                return True, f"NEUTRAL + OVERSOLD (RSI={rsi:.1f})"
+        elif fear_index < self.FG_GREED:
+            if rsi < self.RSI_EXTREME_OVERSOLD:
+                trend_ok, trend_reason = self.is_trend_favorable(symbol)
+                if trend_ok and "STRONG" in trend_reason:
+                    return True, f"GREED + SUPER_OVERSOLD + STRONG_TREND (RSI={rsi:.1f})"
+        return False, f"No signal (F={fear_index}, RSI={rsi:.1f})"
+
+    def check_sell(self, symbol):
+        pos = self.state["positions"].get(symbol)
+        if not pos:
+            return False, "NO_POSITION"
+        price = self.get_price(symbol)
+        if price is None:
+            return False, "PRICE_ERROR"
+        entry = float(pos["entry_price"])
+        highest = float(pos.get("highest_price", entry))
+        # Update highest price if current price is higher
+        if price > highest:
+            self.state["positions"][symbol]["highest_price"] = price
+            self.save_state()
+            highest = price
+        pnl_pct = (price - entry) / entry
+        fear_index = self.get_fear_greed_index()
+        entry_fear = pos.get("entry_fear", 50)
+        # 1) stop loss
+        stop_loss = self.stop_loss_extreme_fear if entry_fear < self.FG_EXTREME_FEAR else self.stop_loss_pct
+        if pnl_pct <= -stop_loss:
+            return True, f"STOP_LOSS ({pnl_pct*100:.2f}%)"
+        # 2) dynamic TP
+        dynamic_tp = self.calculate_dynamic_tp(symbol, entry_fear)
+        if pnl_pct >= dynamic_tp:
+            return True, f"TP_DYNAMIC ({pnl_pct*100:.2f}% vs target {dynamic_tp*100:.1f}%)"
+        # 3) trailing stop
+        if highest > entry * (1 + self.trailing_trigger):
+            trailing_pct = self.trailing_tight if pnl_pct > self.trailing_tight_threshold else self.trailing_stop
+            if price <= highest * (1 - trailing_pct):
+                return True, f"TRAILING_STOP ({pnl_pct*100:.2f}%)"
+        # 4) RSI overbought with profit
+        rsi = self.compute_rsi(symbol)
+        if rsi and rsi >= self.RSI_EXTREME_OVERBOUGHT and pnl_pct > 0.02:
+            return True, f"RSI_EXTREME_OVERBOUGHT ({rsi:.1f})"
+        elif rsi and rsi >= self.RSI_OVERBOUGHT and pnl_pct > 0.05:
+            return True, f"RSI_OVERBOUGHT ({rsi:.1f})"
+        # 5) greed-based sells
+        if fear_index >= self.FG_EXTREME_GREED and pnl_pct > 0.08:
+            return True, f"EXTREME_GREED (F={fear_index})"
+        elif fear_index >= self.FG_GREED and pnl_pct > 0.12:
+            return True, f"GREED_WITH_HIGH_PROFIT (F={fear_index})"
+        return False, f"HOLD (PnL: {pnl_pct*100:+.2f}%, High: {((highest-entry)/entry)*100:.2f}%)"
+
+    # -------------------------
+    # Execution - IMPROVED
+    # -------------------------
+    def buy(self, symbol):
+        price = self.get_price(symbol)
+        if price is None:
+            logger.error(f"Cannot buy {symbol}: price unavailable")
+            return False
+        fear_index = self.get_fear_greed_index()
+        rsi = self.compute_rsi(symbol)
+        position_capital = self.calculate_position_size(symbol, fear_index, rsi)
+        if position_capital < self.min_order_value:
+            logger.warning(f"Position too small: ${position_capital:.2f}")
+            return False
+        amount = position_capital / price
+        amount = self._format_amount(symbol, amount)
+        if symbol in self.market_info:
+            limits = self.market_info[symbol]['limits']
+            if amount < limits['amount']['min']:
+                logger.warning(f"Amount too small: {amount} < {limits['amount']['min']}")
+                return False
+            if position_capital < limits['cost']['min']:
+                logger.warning(f"Cost too small: ${position_capital:.2f} < ${limits['cost']['min']:.2f}")
+                return False
+        
+        # Reserve capital upfront
+        self.state["positions"][symbol] = {
+            "entry_price": price,
+            "amount": amount,
+            "highest_price": price,
+            "entry_time": datetime.now().isoformat(),
+            "entry_fear": fear_index,
+            "reserved_capital": position_capital
+        }
+        self.state["capital"] = float(self.state["capital"] - position_capital)
+        self.state["total_trades"] += 1
+        self.save_state()
+        
+        logger.info(f"BUY {symbol} @ ${price:.2f} | Amount={amount:.8f} | Size=${position_capital:.2f}")
+
+        if not self.dry_run:
+            try:
+                order = self.exchange.create_market_buy_order(symbol, amount)
+                logger.info(f"LIVE BUY ORDER: {order.get('id', 'N/A')}")
+                
+                # Wait and check order status
+                time.sleep(3)
+                order_status = self.exchange.fetch_order(order['id'], symbol)
+                
+                if order_status['status'] != 'closed':
+                    logger.error(f"Order not filled! Status: {order_status['status']}")
+                    # Rollback
+                    self.state["capital"] = float(self.state["capital"] + position_capital)
+                    self.state["total_trades"] -= 1
+                    try:
+                        del self.state["positions"][symbol]
+                    except KeyError:
+                        pass
+                    self.save_state()
+                    return False
+                
+                # Use ACTUAL filled values
+                filled_amount = float(order_status.get('filled', amount))
+                avg_price = float(order_status.get('average', price))
+                
+                # Update with real values
+                self.state["positions"][symbol]["amount"] = filled_amount
+                self.state["positions"][symbol]["entry_price"] = avg_price
+                
+                # Calculate and record actual fees
+                actual_cost = filled_amount * avg_price
+                fee_paid = actual_cost * self.trading_fee_pct
+                self.state["total_fees_paid"] = float(self.state.get("total_fees_paid", 0) + fee_paid)
+                
+                self.save_state()
+                logger.info(f"? Filled: {filled_amount:.8f} @ ${avg_price:.2f} (Fee: ${fee_paid:.4f})")
+                
+            except Exception as e:
+                logger.error(f"Live buy failed: {e}")
+                # Rollback
+                self.state["capital"] = float(self.state["capital"] + position_capital)
+                self.state["total_trades"] -= 1
+                try:
+                    del self.state["positions"][symbol]
+                except KeyError:
+                    pass
+                self.save_state()
+                return False
+        
+        return True
+
+    def sell(self, symbol):
+        pos = self.state["positions"].get(symbol)
+        if not pos:
+            logger.warning(f"No position to sell: {symbol}")
+            return False
+        price = self.get_price(symbol)
+        if price is None:
+            logger.error(f"Cannot sell {symbol}: price unavailable")
+            return False
+        amount = float(pos["amount"])
+        entry = float(pos["entry_price"])
+        reserved_capital = pos.get("reserved_capital", entry * amount)
+        gross_value = price * amount
+        
+        # DEDUCT FEES from sell
+        fee_paid = gross_value * self.trading_fee_pct
+        net_value = gross_value - fee_paid
+        
+        # Calculate PnL with fees
+        pnl = net_value - reserved_capital
+        pnl_pct = (price - entry) / entry * 100.0
+
+        self.state["capital"] = float(self.state["capital"] + net_value)  # Add NET value
+        self.state["total_pnl"] = float(self.state.get("total_pnl", 0.0) + pnl)
+        self.state["total_fees_paid"] = float(self.state.get("total_fees_paid", 0) + fee_paid)
+
+        if pnl > 0:
+            self.state["winning_trades"] += 1
+        else:
+            self.state["losing_trades"] += 1
+
+        self.state["trade_history"].append({
+            "symbol": symbol,
+            "action": "SELL",
+            "entry_price": entry,
+            "exit_price": price,
+            "amount": amount,
+            "pnl": pnl,
+            "pnl_pct": pnl_pct,
+            "fee": fee_paid,
+            "timestamp": datetime.now().isoformat()
+        })
+
+        if len(self.state["trade_history"]) > 1000:
+            self.state["trade_history"] = self.state["trade_history"][-1000:]
+
+        try:
+            del self.state["positions"][symbol]
+        except KeyError:
+            pass
+
+        self.state["last_action"] = f"SELL {symbol} @ ${price:.2f} | PnL={pnl_pct:+.2f}%"
+        self.save_state()
+
+        logger.info(f"SELL {symbol} @ ${price:.2f} | Net=${net_value:.2f} | PnL=${pnl:.2f} ({pnl_pct:+.2f}%) | Fee=${fee_paid:.4f}")
+
+        if not self.dry_run:
+            try:
+                order = self.exchange.create_market_sell_order(symbol, amount)
+                logger.info(f"LIVE SELL ORDER: {order.get('id', 'N/A')}")
+            except Exception as e:
+                logger.error(f"Live sell failed: {e}")
+                return False
+
+        return True
+
+    # -------------------------
+    # Portfolio valuation
+    # -------------------------
+    def calculate_total(self):
+        total = float(self.state["capital"])
+        for symbol, pos in self.state["positions"].items():
+            price = self.get_price(symbol)
+            if price is not None:
+                total += price * pos["amount"]
+            else:
+                total += pos["entry_price"] * pos["amount"]
+        current_max = float(self.state.get("max_portfolio_value", self.initial_capital))
+        if total > current_max:
+            self.state["max_portfolio_value"] = total
+        if current_max > 0:
+            drawdown = (current_max - total) / current_max
+            current_drawdown = float(self.state.get("max_drawdown", 0.0))
+            if drawdown > current_drawdown:
+                self.state["max_drawdown"] = drawdown
+        return float(total)
+
+    # -------------------------
+    # Main cycle
+    # -------------------------
+    def step(self):
+        self.state["cycle_count"] = int(self.state.get("cycle_count", 0)) + 1
+        logger.info("")
+        logger.info("=" * 80)
+        logger.info(f"CYCLE {self.state['cycle_count']} - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        logger.info("=" * 80)
+        
+        fear_index = self.get_fear_greed_index()
+        sentiment = (
+            "EXTREME_FEAR" if fear_index < self.FG_EXTREME_FEAR else
+            "FEAR" if fear_index < self.FG_FEAR else
+            "NEUTRAL_LOW" if fear_index < self.FG_NEUTRAL_LOW else
+            "NEUTRAL_HIGH" if fear_index < self.FG_NEUTRAL_HIGH else
+            "GREED" if fear_index < self.FG_GREED else
+            "EXTREME_GREED"
+        )
+        logger.info(f"Fear & Greed: {fear_index} ({sentiment})")
+        
+        # reinvest check
+        self.check_reinvestment()
+        
+        # SELL phase
+        sell_count = 0
+        for symbol in list(self.state["positions"].keys()):
+            try:
+                should_sell, reason = self.check_sell(symbol)
+                if should_sell:
+                    logger.info(f"SELL signal: {symbol} - {reason}")
+                    if self.sell(symbol):
+                        sell_count += 1
+                        time.sleep(1)
+                else:
+                    logger.info(f"HOLD: {symbol} - {reason}")
+            except Exception as e:
+                logger.error(f"Error checking sell {symbol}: {e}")
+        
+        # BUY phase
+        buy_count = 0
+        if len(self.state["positions"]) < self.max_positions:
+            for symbol in self.symbols:
+                if symbol not in self.state["positions"]:
+                    try:
+                        should_buy, reason = self.check_buy(symbol)
+                        logger.info(f"{symbol}: {reason}")
+                        if should_buy:
+                            if self.buy(symbol):
+                                buy_count += 1
+                                time.sleep(1)
+                                if len(self.state["positions"]) >= self.max_positions:
+                                    break
+                    except Exception as e:
+                        logger.error(f"Error checking buy {symbol}: {e}")
+                    time.sleep(0.5)
+        
+        # Summary
+        total_value = self.calculate_total()
+        pnl = total_value - self.initial_capital
+        pnl_pct = (pnl / self.initial_capital) * 100.0
+        trades = int(self.state["total_trades"])
+        wins = int(self.state["winning_trades"])
+        losses = int(self.state["losing_trades"])
+        win_rate = (wins / trades * 100.0) if trades > 0 else 0.0
+        total_fees = float(self.state.get("total_fees_paid", 0.0))
+        
+        logger.info("")
+        logger.info("PORTFOLIO STATUS:")
+        logger.info(f"   Cash: ${self.state['capital']:.2f}")
+        logger.info(f"   Total Value: ${total_value:.2f}")
+        logger.info(f"   Total PnL: ${pnl:+.2f} ({pnl_pct:+.2f}%)")
+        logger.info(f"   Total Fees Paid: ${total_fees:.4f}")
+        logger.info(f"   Max Drawdown: {self.state.get('max_drawdown', 0.0)*100:.2f}%")
+        logger.info(f"   Trades: {trades} | Win Rate: {win_rate:.1f}%")
+        logger.info(f"   Positions: {len(self.state['positions'])}/{self.max_positions}")
+        logger.info(f"   Cycle Actions: BUY={buy_count}, SELL={sell_count}")
+        
+        self.state["fear_greed_history"].append({
+            "timestamp": datetime.now().isoformat(),
+            "value": fear_index,
+            "sentiment": sentiment
+        })
+        if len(self.state["fear_greed_history"]) > 1000:
+            self.state["fear_greed_history"] = self.state["fear_greed_history"][-1000:]
+        
+        self.save_state()
+        logger.info("Next cycle in 10 minutes...")
+        logger.info("=" * 80)
+        return total_value
+
+# -------------------------
+# Main execution
+# -------------------------
+def main():
+    logger.info("QUANTUM TRADER V3.3 ULTIMATE - STARTING")
+    try:
+        trader = QuantumTraderV33UltimateFinal(initial_capital=200.0, dry_run=True)
+        # Sync with exchange before starting
+        trader.sync_with_exchange()
+    except Exception as e:
+        logger.error(f"Initialization error: {e}")
+        return
+    
+    logger.info("Trader initialized. Entering loop (Ctrl-C to stop).")
+    
+    try:
+        while True:
+            try:
+                trader.step()
+            except KeyboardInterrupt:
+                logger.info("Interrupted by user. Stopping.")
+                break
+            except Exception as e:
+                logger.error(f"Error in main loop: {e}")
+                logger.info("Continuing after error...")
+            time.sleep(120)  # PATCHED: 10min -> 2min
+    except Exception as e:
+        logger.error(f"Fatal error: {e}")
+    
+    # Final stats
+    logger.info("")
+    logger.info("FINAL STATS")
+    total_value = trader.calculate_total()
+    pnl = total_value - trader.initial_capital
+    pnl_pct = (pnl / trader.initial_capital) * 100.0
+    trades = trader.state["total_trades"]
+    wins = trader.state["winning_trades"]
+    losses = trader.state["losing_trades"]
+    win_rate = (wins / trades * 100.0) if trades > 0 else 0.0
+    total_fees = float(trader.state.get("total_fees_paid", 0.0))
+    
+    logger.info(f"Final Value: ${total_value:.2f} | PnL: ${pnl:+.2f} ({pnl_pct:+.2f}%)")
+    logger.info(f"Trades: {trades} | Wins: {wins} | Losses: {losses} | Win rate: {win_rate:.1f}%")
+    logger.info(f"Total Fees Paid: ${total_fees:.4f}")
+    logger.info(f"Max Drawdown: {trader.state.get('max_drawdown', 0.0)*100:.2f}%")
+    logger.info("Session ended.")
+
+if __name__ == "__main__":
+    main()
