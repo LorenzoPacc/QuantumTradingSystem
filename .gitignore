@@ -17,3 +17,15 @@ config_secret.py
 *.key
 private/
 venv/
+
+# Backup files
+*.backup
+*.backup_*
+cire
+
+# Reports (opzionale, puoi tenerli)
+reports/
+
+# Positions/Trades (già ignorati ma conferma)
+paper_trading_30d/positions.json
+paper_trading_30d/trades.json
