@@ -1,5 +1,5 @@
 #!/bin/bash
-# Daily review script
+# Daily review script - V35
 
 echo "═══════════════════════════════════════════════════════════"
 echo "📊 DAILY REVIEW - $(date +%Y-%m-%d)"
@@ -23,8 +23,8 @@ echo "📈 Last 24h Activity:"
 echo "───────────────────────────────────────────────────────────"
 
 # Trades in last 24h
-if [ -f autonomous_bot.log ]; then
-    TRADES_24H=$(grep "OPENED\|CLOSED" autonomous_bot.log | grep "$(date +%Y-%m-%d)" | wc -l)
+if [ -f paper_trading_30d/bot_output.log ]; then
+    TRADES_24H=$(grep -E "OPENED|CLOSED" paper_trading_30d/bot_output.log | grep "$(date +%Y-%m-%d)" | wc -l)
     echo "   Trades executed: $TRADES_24H"
 else
     echo "   No log file found"
@@ -33,8 +33,8 @@ fi
 # Latest portfolio status
 echo ""
 echo "💼 Latest Portfolio:"
-if [ -f autonomous_bot.log ]; then
-    tail -100 autonomous_bot.log | grep -A 6 "PORTFOLIO STATUS" | tail -7
+if [ -f paper_trading_30d/bot_output.log ]; then
+    tail -100 paper_trading_30d/bot_output.log | grep -A 6 "PORTFOLIO STATUS" | tail -7
 else
     echo "   No data available"
 fi
@@ -51,11 +51,11 @@ fi
 echo ""
 echo "⚠️  Issues (if any):"
 echo "───────────────────────────────────────────────────────────"
-if [ -f autonomous_bot.log ]; then
-    ERROR_COUNT=$(grep -c "ERROR" autonomous_bot.log)
+if [ -f paper_trading_30d/bot_output.log ]; then
+    ERROR_COUNT=$(grep -c "ERROR" paper_trading_30d/bot_output.log)
     if [ $ERROR_COUNT -gt 0 ]; then
         echo "   ⚠️  $ERROR_COUNT errors logged"
-        tail -20 autonomous_bot.log | grep "ERROR"
+        tail -20 paper_trading_30d/bot_output.log | grep "ERROR"
     else
         echo "   ✅ No errors"
     fi
