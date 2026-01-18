@@ -296,7 +296,7 @@ class AutonomousTradingBot:
 # Run bot
 if __name__ == "__main__":
     bot = AutonomousTradingBot(
-        initial_capital=200,
+        initial_capital=202.64,
         symbols=['BTC/USDT', 'ETH/USDT', 'SOL/USDT']
     )
     
