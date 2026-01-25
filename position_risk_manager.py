@@ -1,3 +1,7 @@
+#!/usr/bin/env python3
+"""
+Position & Risk Manager - Fixed con exit_reason
+"""
 import json
 import os
 from datetime import datetime
@@ -6,28 +10,33 @@ class PositionRiskManager:
     def __init__(self, initial_capital):
         self.initial_capital = initial_capital
         self.current_capital = initial_capital
-        self.MAX_POSITIONS = 3
-        self.MAX_PORTFOLIO_EXPOSURE = 0.30
-        self.MAX_RISK_PER_TRADE = 0.005
-        self.MAX_DAILY_LOSS = 0.02
+        self.positions = {}
+        self.trades = []
+        self.daily_pnl = 0
+        self.max_drawdown = 0
         
+        # Files
         self.positions_file = 'paper_trading_30d/positions.json'
         self.trades_file = 'paper_trading_30d/trades.json'
         
-        # Load existing data
+        # Load existing
         self.positions = self._load_positions()
         self.trades = self._load_trades()
-        self.daily_pnl = 0
-        self.max_drawdown = 0
+        
+        # Risk params
+        self.MAX_POSITIONS = 5
+        self.MAX_RISK_PER_TRADE = 0.005
+        self.MAX_PORTFOLIO_EXPOSURE = 0.7
+        self.MAX_DAILY_LOSS = 0.03
     
     def _load_positions(self):
         """Load positions from file"""
-        if os.path.exists(self.positions_file):
-            try:
+        try:
+            if os.path.exists(self.positions_file):
                 with open(self.positions_file, 'r') as f:
                     return json.load(f)
-            except:
-                pass
+        except:
+            pass
         return {}
     
     def _save_positions(self):
@@ -41,12 +50,12 @@ class PositionRiskManager:
     
     def _load_trades(self):
         """Load trade history"""
-        if os.path.exists(self.trades_file):
-            try:
+        try:
+            if os.path.exists(self.trades_file):
                 with open(self.trades_file, 'r') as f:
                     return json.load(f)
-            except:
-                pass
+        except:
+            pass
         return []
     
     def _save_trades(self):
@@ -62,79 +71,56 @@ class PositionRiskManager:
         """Check if can open new position"""
         if len(self.positions) >= self.MAX_POSITIONS:
             return False, f"Max positions reached ({self.MAX_POSITIONS})"
-        
         if symbol in self.positions:
             return False, f"Already have position in {symbol}"
-        
         total_exposure = sum(p['size'] * p['entry'] for p in self.positions.values())
         if total_exposure / self.current_capital > self.MAX_PORTFOLIO_EXPOSURE:
             return False, "Max portfolio exposure reached"
-        
         if abs(self.daily_pnl) > self.MAX_DAILY_LOSS * self.initial_capital:
             return False, "Daily loss limit reached"
-        
         return True, "OK"
     
     def calculate_position_size(self, signal, symbol):
         """Calculate position size using Kelly Criterion"""
         risk_amount = self.current_capital * self.MAX_RISK_PER_TRADE
-        
         entry = signal['entry']
-        stop_loss = signal.get('stop_loss', entry * 0.97)
-        risk_per_unit = abs(entry - stop_loss)
-        
+        stop = signal.get('stop_loss', entry * 0.98)
+        risk_per_unit = abs(entry - stop)
         if risk_per_unit == 0:
             return 0
-        
         size = risk_amount / risk_per_unit
-        max_position_value = self.current_capital * 0.10
-        max_size = max_position_value / entry
-        
+        max_size = (self.current_capital * 0.15) / entry
         return min(size, max_size)
     
-    def open_position(self, symbol, signal, size):
+    def open_position(self, symbol, entry_price, size):
         """Open new position"""
-        if size <= 0:
-            return False, "Invalid size"
-        
-        can_open, reason = self.can_open_position(symbol)
-        if not can_open:
-            return False, reason
-        
         self.positions[symbol] = {
-            'entry': signal['entry'],
+            'entry': entry_price,
             'size': size,
-            'side': signal['signal'],
-            'stop_loss': signal.get('stop_loss'),
-            'take_profit': signal.get('take_profit'),
             'opened_at': datetime.now().isoformat()
         }
-        
         self._save_positions()
-        return True, f"Position opened: {symbol}"
+        return True
     
-    def check_position_exits(self, symbol, current_price):
-        """Check if should exit position"""
-        if symbol not in self.positions:
-            return 'HOLD', 'No position'
+    def _classify_exit_reason(self, reason, pnl_pct):
+        """
+        Classifica exit reason in modo preciso
+        """
+        reason_lower = reason.lower()
         
-        pos = self.positions[symbol]
-        entry = pos['entry']
-        
-        # Check stop loss
-        if pos.get('stop_loss'):
-            if current_price <= pos['stop_loss']:
-                return 'EXIT', 'Stop loss hit'
-        
-        # Check take profit
-        if pos.get('take_profit'):
-            if current_price >= pos['take_profit']:
-                return 'EXIT', 'Target reached'
-        
-        return 'HOLD', 'Holding'
+        if "stop loss" in reason_lower or "stop" in reason_lower:
+            if pnl_pct > 0:
+                return "TRAILING_STOP_PROFIT"
+            else:
+                return "HARD_STOP_LOSS"
+        elif "target" in reason_lower or "profit" in reason_lower:
+            return "TAKE_PROFIT"
+        else:
+            # Mantieni originale se sconosciuto
+            return reason
     
     def close_position(self, symbol, exit_price, reason):
-        """Close position"""
+        """Close position with proper exit_reason classification"""
         if symbol not in self.positions:
             return False, "No position to close"
         
@@ -149,7 +135,8 @@ class PositionRiskManager:
             'size': pos['size'],
             'pnl': pnl,
             'pnl_pct': pnl_pct,
-            'reason': reason,
+            'reason': reason,  # Manteniamo per compatibilità
+            'exit_reason': self._classify_exit_reason(reason, pnl_pct),  # NUOVO!
             'closed_at': datetime.now().isoformat()
         }
         
@@ -158,7 +145,6 @@ class PositionRiskManager:
         self.daily_pnl += pnl
         
         del self.positions[symbol]
-        
         self._save_positions()
         self._save_trades()
         
@@ -179,3 +165,7 @@ class PositionRiskManager:
             'max_drawdown': self.max_drawdown,
             'active_positions': len(self.positions)
         }
+    
+    def update_daily_reset(self):
+        """Reset daily counters"""
+        self.daily_pnl = 0
