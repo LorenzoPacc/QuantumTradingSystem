@@ -274,7 +274,7 @@ class AutonomousTradingBot:
         cycle_duration = time.time() - cycle_start
         self.logger.info(f"⏱️ Ciclo durato {cycle_duration:.1f}s")
         self.logger.info("="*80)
-        self.logger.info("⏰ Next cycle in 2 minutes (120 seconds)...")
+        self.logger.info("⏰ Next cycle in 2 hours (7200 seconds)...")
         self.logger.info("="*80 + "\n")
 
     def _check_existing_positions(self):
