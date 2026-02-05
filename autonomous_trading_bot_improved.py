@@ -17,6 +17,7 @@ import ccxt
 
 from market_state_engine import MarketStateEngine
 from regime_controller import RegimeController
+from cost_calculator import CostCalculator
 from position_risk_manager import PositionRiskManager
 from telegram_notifier import TelegramNotifier
 
@@ -68,6 +69,7 @@ class AutonomousTradingBot:
         # Core modules
         self.market_engine = MarketStateEngine()
         self.regime_controller = RegimeController()
+        self.cost_calculator = CostCalculator(is_spot=True)  # V37 is SPOT
         self.risk_manager = PositionRiskManager(initial_capital)
 
         # ═══════════════════════════════════════════
@@ -381,6 +383,18 @@ class AutonomousTradingBot:
                 # DEBUG: Log decisione
                 self.logger.info(f"   {symbol}: can_trade={can_trade}, signal={signal.get('signal') if signal else None}, reason={reason}")
                 
+
+                # COST FILTER - Expected Edge > (Fee + Slippage) * 2.5
+                if can_trade and signal:
+                    expected_edge = 0.04  # 4% medio target
+                    cost_ok, cost_reason = self.cost_calculator.should_trade_based_on_edge(
+                        expected_edge, symbol
+                    )
+                    if not cost_ok:
+                        self.logger.info(f"      ❌ COST FILTER: {cost_reason}")
+                        can_trade = False
+                        reason = cost_reason
+
                 if can_trade and signal and signal['signal'] in ['BUY', 'SELL']:
                     # ═══════════════════════════════════════════
                     # Idempotency check (improvements)
