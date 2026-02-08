@@ -1,0 +1,83 @@
+{
+  "bot_name": "Perpetual Bot V1",
+  "version": "1.0.0",
+  "mode": "paper_trading",
+  
+  "capital": {
+    "initial": 100,
+    "currency": "USDT"
+  },
+  
+  "leverage": {
+    "default": 2,
+    "max": 3,
+    "margin_mode": "isolated"
+  },
+  
+  "position": {
+    "max_size_pct": 0.20,
+    "max_concurrent": 1,
+    "allowed_directions": ["LONG", "SHORT"],
+    "hedging_enabled": false
+  },
+  
+  "timeframes": {
+    "primary": "1h",
+    "confirmation": "4h",
+    "target_holding_hours": [2, 12]
+  },
+  
+  "indicators": {
+    "ema_long": 200,
+    "ema_med": 50,
+    "ema_short": 20,
+    "rsi_period": 14,
+    "atr_period": 14,
+    "volume_ma": 20
+  },
+  
+  "entry": {
+    "rsi_range": [45, 55],
+    "volume_multiplier": 1.2,
+    "min_atr": 0.008
+  },
+  
+  "risk": {
+    "stop_loss_pct": 0.03,
+    "take_profit_pct": 0.07,
+    "min_risk_reward": 1.5,
+    "trailing_stop": {
+      "activation_pct": 0.04,
+      "trail_distance_pct": 0.02
+    }
+  },
+  
+  "limits": {
+    "risk_per_trade_pct": 0.0075,
+    "daily_loss_limit_pct": 0.08,
+    "max_consecutive_losses": 2,
+    "cooldown_hours": 24,
+    "max_trades_per_day": 1
+  },
+  
+  "blockers": {
+    "max_atr_pct": 0.035,
+    "funding_rate": {
+      "max_positive": 0.0005,
+      "max_negative": -0.0005
+    },
+    "min_liquidity_usdt": 100000
+  },
+  
+  "assets": [
+    "BTC/USDT:USDT",
+    "ETH/USDT:USDT"
+  ],
+  
+  "targets": {
+    "win_rate": [0.45, 0.55],
+    "sharpe": [2.0, 3.0],
+    "trades_per_month": [5, 10],
+    "max_drawdown": 0.15
+  }
+}

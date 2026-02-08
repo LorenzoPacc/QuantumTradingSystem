@@ -1,0 +1,28 @@
+[
+  {
+    "symbol": "BTC/USDT:USDT",
+    "direction": "LONG",
+    "entry_price": 78000,
+    "exit_price": 80000,
+    "entry_time": "2026-02-03T21:58:43.863015",
+    "exit_time": "2026-02-03T21:58:43.863032",
+    "quantity": 0.001,
+    "pnl_usd": 2.0,
+    "pnl_pct": 0.026,
+    "exit_reason": "TAKE_PROFIT",
+    "final_capital": 102.0
+  },
+  {
+    "symbol": "BTC/USDT:USDT",
+    "direction": "LONG",
+    "entry_price": 78000,
+    "exit_price": 74941.8,
+    "entry_time": "2026-02-03T21:58:43.861088",
+    "exit_time": "2026-02-04T15:02:13.477366",
+    "quantity": 0.001,
+    "pnl_usd": -3.058199999999997,
+    "pnl_pct": -0.03920769230769227,
+    "exit_reason": "STOP_LOSS",
+    "final_capital": 98.9418
+  }
+]
