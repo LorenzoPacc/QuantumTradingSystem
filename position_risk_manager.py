@@ -1,4 +1,6 @@
 import json
+import tempfile
+import shutil
 import os
 from datetime import datetime
 
@@ -24,25 +26,63 @@ class PositionRiskManager:
         # Load existing data
         self.positions = self._load_positions()
         self.trades = self._load_trades()
+        self.portfolio_file = 'paper_trading_30d/portfolio.json'
+        saved_capital = self._load_capital()
+        if saved_capital and saved_capital > 0:
+            self.current_capital = saved_capital
         self.daily_pnl = 0
         self.max_drawdown = 0
+
+    def _validate_position(self, symbol, pos):
+        """Valida integrità posizione al caricamento"""
+        required = ['entry', 'size', 'side', 'stop_loss']
+        for field in required:
+            if field not in pos:
+                return False, f'Campo mancante: {field}'
+        if pos['entry'] < 100:
+            return False, f"Entry anomala: ${pos['entry']}"
+        if pos['size'] <= 0:
+            return False, f"Size invalida: {pos['size']}"
+        if pos['stop_loss'] <= 0:
+            return False, f"Stop loss invalido: {pos['stop_loss']}"
+        if pos['side'] not in ['BUY', 'SELL']:
+            return False, f"Side invalido: {pos['side']}"
+        return True, 'OK'
 
     def _load_positions(self):
         """Load positions from file"""
         if os.path.exists(self.positions_file):
             try:
                 with open(self.positions_file, 'r') as f:
-                    return json.load(f)
+                    raw = json.load(f)
+                    clean = {}
+                    for symbol, pos in raw.items():
+                        valid, reason = self._validate_position(symbol, pos)
+                        if valid:
+                            clean[symbol] = pos
+                        else:
+                            import logging
+                            logging.getLogger('PositionRiskManager').error(
+                                f'🚨 POSIZIONE SCARTATA: {symbol} - {reason}'
+                            )
+                    return clean
             except:
                 pass
         return {}
 
     def _save_positions(self):
-        """Save positions to file"""
+        """Save positions to file - ATOMIC WRITE"""
         try:
             os.makedirs('paper_trading_30d', exist_ok=True)
-            with open(self.positions_file, 'w') as f:
-                json.dump(self.positions, f, indent=2)
+            dir_name = os.path.dirname(os.path.abspath(self.positions_file))
+            fd, tmp_path = tempfile.mkstemp(dir=dir_name, prefix='.tmp_positions_')
+            try:
+                with os.fdopen(fd, 'w') as f:
+                    json.dump(self.positions, f, indent=2)
+                shutil.move(tmp_path, self.positions_file)
+            except Exception:
+                os.unlink(tmp_path)
+                raise
         except Exception as e:
             print(f"Error saving positions: {e}")
 
@@ -51,12 +91,56 @@ class PositionRiskManager:
         if os.path.exists(self.trades_file):
             try:
                 with open(self.trades_file, 'r') as f:
-                    return json.load(f)
-            except:
-                pass
+                    data = json.load(f)
+                if not isinstance(data, list):
+                    import logging
+                    logging.getLogger('PositionRiskManager').error(
+                        f'🚨 trades.json schema errato: atteso list, trovato {type(data)}'
+                    )
+                    return []
+                return data
+            except Exception as e:
+                import logging
+                logging.getLogger('PositionRiskManager').error(
+                    f'❌ Errore caricamento trades.json: {e}'
+                )
         return []
 
+    def _load_capital(self):
+        """Load capital from portfolio.json"""
+        try:
+            if os.path.exists(self.portfolio_file):
+                with open(self.portfolio_file, 'r') as f:
+                    data = json.load(f)
+                capital = data.get('capital', 0)
+                if capital > 0:
+                    return capital
+        except:
+            pass
+        return None
+
+    def _save_capital(self):
+        """Save capital to portfolio.json"""
+        try:
+            os.makedirs('paper_trading_30d', exist_ok=True)
+            data = {
+                'capital': self.current_capital,
+                'initial_capital': self.initial_capital,
+                'total_pnl': self.current_capital - self.initial_capital,
+                'last_updated': datetime.now().isoformat()
+            }
+            with open(self.portfolio_file, 'w') as f:
+                json.dump(data, f, indent=2)
+        except Exception as e:
+            print(f"Error saving capital: {e}")
+
     def _save_trades(self):
+        if len(self.trades) > 10000:
+            import logging
+            logging.getLogger('PositionRiskManager').error(
+                f'🚨 trades.json anomalo: {len(self.trades)} trade - possibile loop'
+            )
+            return
         """Save trade history"""
         try:
             os.makedirs('paper_trading_30d', exist_ok=True)
@@ -109,6 +193,13 @@ class PositionRiskManager:
             return False, reason
 
         entry = signal['entry']
+        # 🛡️ VALIDAZIONE ENTRY PRICE
+        if entry < 100:
+            import logging
+            logging.getLogger('PositionRiskManager').error(
+                f"🚨 ENTRY ANOMALA BLOCCATA: {symbol} entry=${entry}"
+            )
+            return False, f"Entry anomala bloccata: ${entry}"
         initial_stop_loss = signal.get('stop_loss', entry * 0.97)
         
         self.positions[symbol] = {
@@ -127,34 +218,52 @@ class PositionRiskManager:
         return True, f"Position opened: {symbol}"
 
     def update_trailing_stop(self, symbol, current_price):
-        """🆕 NUOVA FUNZIONE: Aggiorna trailing stop dinamicamente"""
+        """🆕 NUOVA FUNZIONE: Aggiorna trailing stop dinamicamente - FIX SHORT"""
         if symbol not in self.positions:
             return
-        
+
         pos = self.positions[symbol]
         entry = pos['entry']
-        current_profit_pct = (current_price - entry) / entry
-        
-        if current_price > pos.get('highest_price', entry):
-            pos['highest_price'] = current_price
-        
+        side = pos.get('side', 'BUY')
+        is_long = (side == 'BUY')
+
+        # ✅ FIX: Profit direction-aware
+        if is_long:
+            current_profit_pct = (current_price - entry) / entry
+        else:  # SHORT: profit quando prezzo scende
+            current_profit_pct = (entry - current_price) / entry
+
+        # ✅ FIX: Traccia best price (max LONG, min SHORT)
+        if is_long:
+            if current_price > pos.get('highest_price', entry):
+                pos['highest_price'] = current_price
+        else:
+            if current_price < pos.get('highest_price', entry):
+                pos['highest_price'] = current_price
+
         if not pos.get('breakeven_activated', False) and current_profit_pct >= self.BREAKEVEN_ACTIVATION:
             pos['stop_loss'] = entry
             pos['breakeven_activated'] = True
             print(f"   💚 {symbol}: Breakeven activated (SL moved to entry)")
-        
+
         elif current_profit_pct >= self.TRAILING_ACTIVATION_PROFIT:
             pos['trailing_active'] = True
-            highest = pos.get('highest_price', current_price)
-            new_stop = highest * (1 - self.TRAILING_STOP_DISTANCE)
-            
-            if new_stop > pos['stop_loss']:
-                pos['stop_loss'] = new_stop
-                print(f"   📈 {symbol}: Trailing stop updated to ${new_stop:.2f} (from high ${highest:.2f})")
-        
-        self._save_positions()
+            best_price = pos.get('highest_price', current_price)
 
+            if is_long:
+                new_stop = best_price * (1 - self.TRAILING_STOP_DISTANCE)
+                if new_stop > pos['stop_loss']:
+                    pos['stop_loss'] = new_stop
+                    print(f"   📈 {symbol}: Trailing stop → ${new_stop:.2f} (from high ${best_price:.2f})")
+            else:  # SHORT: stop scende col prezzo
+                new_stop = best_price * (1 + self.TRAILING_STOP_DISTANCE)
+                if new_stop < pos['stop_loss']:
+                    pos['stop_loss'] = new_stop
+                    print(f"   📉 {symbol}: Trailing stop → ${new_stop:.2f} (from low ${best_price:.2f})")
+
+        self._save_positions()
     def check_position_exits(self, symbol, current_price):
+        print(f"[DEBUG] check_position_exits called for {symbol} at {current_price}")
         """Check if should exit position (con trailing stop)"""
         if symbol not in self.positions:
             return 'HOLD', 'No position'
@@ -164,8 +273,13 @@ class PositionRiskManager:
         
         self.update_trailing_stop(symbol, current_price)
 
+        side = pos.get('side', 'BUY')
+        is_long = (side == 'BUY')
+
+        # ✅ FIX: Stop loss direction-aware (era sempre <= anche per SHORT)
         if pos.get('stop_loss'):
-            if current_price <= pos['stop_loss']:
+            stop_hit = (current_price <= pos['stop_loss']) if is_long else (current_price >= pos['stop_loss'])
+            if stop_hit:
                 if pos.get('trailing_active'):
                     return 'EXIT', 'Trailing stop hit'
                 elif pos.get('breakeven_activated'):
@@ -173,18 +287,22 @@ class PositionRiskManager:
                 else:
                     return 'EXIT', 'Hard stop loss hit'
 
-        tp1_price = entry * (1 + self.TAKE_PROFIT_1)
-        if current_price >= tp1_price and not pos.get('tp1_hit'):
+        # ✅ FIX: Take profit direction-aware (era sempre >= anche per SHORT)
+        tp1_price = entry * (1 + self.TAKE_PROFIT_1) if is_long else entry * (1 - self.TAKE_PROFIT_1)
+        tp1_hit = (current_price >= tp1_price) if is_long else (current_price <= tp1_price)
+        if tp1_hit and not pos.get('tp1_hit'):
             pos['tp1_hit'] = True
             self._save_positions()
             print(f"   🎯 {symbol}: TP1 reached (+{self.TAKE_PROFIT_1*100}%)")
 
-        tp2_price = entry * (1 + self.TAKE_PROFIT_2)
-        if current_price >= tp2_price:
+        tp2_price = entry * (1 + self.TAKE_PROFIT_2) if is_long else entry * (1 - self.TAKE_PROFIT_2)
+        tp2_hit = (current_price >= tp2_price) if is_long else (current_price <= tp2_price)
+        if tp2_hit:
             return 'EXIT', 'Take profit 2 reached'
 
         if pos.get('take_profit'):
-            if current_price >= pos['take_profit']:
+            if (current_price >= pos['take_profit'] and is_long) or \
+               (current_price <= pos['take_profit'] and not is_long):
                 return 'EXIT', 'Target reached'
 
         return 'HOLD', 'Holding'
@@ -212,6 +330,13 @@ class PositionRiskManager:
         pos = self.positions[symbol]
         pnl = (exit_price - pos['entry']) * pos['size']
         pnl_pct = ((exit_price - pos['entry']) / pos['entry']) * 100
+        # 🛡️ WARNING PnL anomalo (solo log)
+        if abs(pnl_pct) > 1000:
+            import logging
+            logging.getLogger('PositionRiskManager').error(
+                f"🚨 PnL ANOMALO RILEVATO: {symbol} "
+                f"pnl={pnl_pct:.2f}% entry={pos['entry']} exit={exit_price}"
+            )
 
         trade = {
             'symbol': symbol,
@@ -231,6 +356,7 @@ class PositionRiskManager:
         self.trades.append(trade)
         self.current_capital += pnl
         self.daily_pnl += pnl
+        self._save_capital()
 
         del self.positions[symbol]
 

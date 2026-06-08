@@ -60,8 +60,8 @@ class SignalGenerator:
             return True, f"ATR too high: {atr_pct:.2f}% > {max_atr*100:.2f}%"
         
         # Volume too low
-        if volume < volume_ma * 0.5:
-            return True, f"Volume too low: {volume:.0f} < {volume_ma*0.5:.0f}"
+        if volume < volume_ma * 0.35:
+            return True, f"Volume too low: {volume:.0f} < {volume_ma*0.35:.0f}"
         
         return False, None
     

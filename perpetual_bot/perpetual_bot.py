@@ -10,6 +10,7 @@ from datetime import datetime
 from signal_generator import SignalGenerator
 from risk_manager import RiskManager
 from positions_manager import PositionsPersistence
+from telegram_notifier import TelegramNotifier
 from cost_calculator import CostCalculator
 import logging
 
@@ -24,7 +25,7 @@ class PerpetualBot:
         # Setup detailed logging
         self.logger = logging.getLogger('PerpetualBot')
         self.logger.setLevel(logging.INFO)
-        
+
         # Format like V37
         formatter = logging.Formatter(
             '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -50,6 +51,17 @@ class PerpetualBot:
         # Persistence manager
         self.persistence = PositionsPersistence()
         self.cost_calculator = CostCalculator(is_spot=False)  # Perpetual is FUTURES
+
+        # Telegram notifier
+        try:
+            self.notifier = TelegramNotifier()
+            if self.notifier.enabled:
+                self.logger.info("✅ Telegram notifications enabled")
+            else:
+                self.logger.info("⚠️ Telegram disabled")
+        except Exception as e:
+            self.notifier = None
+            self.logger.info(f"⚠️ Telegram init error: {e}")
         
         # State
         self.positions = self.persistence.load_positions()  # Carica da file!
@@ -226,6 +238,18 @@ class PerpetualBot:
         self.logger.info(f"         SL: ${stop_loss:.2f} (-{self.config['risk']['stop_loss_pct']*100:.1f}%)")
         self.logger.info(f"         TP: ${take_profit:.2f} (+{self.config['risk']['take_profit_pct']*100:.1f}%)")
         self.logger.info(f"         R:R: {rr_ratio:.2f}:1")
+
+        # Telegram notification
+        if hasattr(self, 'notifier') and self.notifier and self.notifier.enabled:
+            try:
+                msg = f"🟢 <b>PERPETUAL OPENED</b>\n"
+                msg += f"{signal['direction']} {symbol}\n"
+                msg += f"Entry: ${entry_price:,.2f}\n"
+                msg += f"TP: ${take_profit:,.2f} | SL: ${stop_loss:,.2f}\n"
+                msg += f"Size: {quantity} | Leverage: {leverage}x"
+                self.notifier.send_message(msg)
+            except Exception as e:
+                self.logger.warning(f"Telegram send error: {e}")
     
     def manage_positions(self):
         """Check and manage open positions"""
@@ -373,6 +397,19 @@ class PerpetualBot:
         self.logger.info(f"         Exit: ${exit_price:.2f}")
         print(f"         PnL: {pnl_pct*100:+.2f}% (${pnl_usd:+.2f})")
         self.logger.info(f"         New Capital: ${self.risk_manager.current_capital:.2f}")
+
+        # Telegram notification CLOSE
+        if hasattr(self, 'notifier') and self.notifier and self.notifier.enabled:
+            try:
+                pnl_emoji = "🟢" if pnl_usd > 0 else "🔴"
+                msg = f"{pnl_emoji} <b>PERPETUAL CLOSED</b>\n"
+                msg += f"{direction} {symbol}\n"
+                msg += f"PnL: ${pnl_usd:.2f} ({pnl_pct*100:.2f}%)\n"
+                msg += f"Reason: {reason}\n"
+                msg += f"Capital: ${self.risk_manager.current_capital:.2f}"
+                self.notifier.send_message(msg)
+            except Exception as e:
+                self.logger.warning(f"Telegram notification error: {e}")
         
         del self.positions[symbol]
         

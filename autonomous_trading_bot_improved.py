@@ -171,6 +171,8 @@ class AutonomousTradingBot:
         Single trading cycle - con improvements e fix
         """
         self.cycle_count += 1
+        self._send_health_check()
+        self._reset_daily_pnl_if_needed()
         cycle_start = time.time()
 
         self.logger.info("\n" + "="*80)
@@ -257,6 +259,7 @@ class AutonomousTradingBot:
         # Statistiche periodiche
         # ═══════════════════════════════════════════
         if self.cycle_count % 10 == 0:
+            self.risk_manager._save_capital()  # 💾 persist capital
             # Rate limiter stats
             rl_stats = self.rate_limiter.get_stats()
             self.logger.info(
@@ -274,6 +277,11 @@ class AutonomousTradingBot:
         # ═══════════════════════════════════════════
 
         cycle_duration = time.time() - cycle_start
+        try:
+            with open('last_cycle.txt', 'w') as _lc:
+                _lc.write(str(time.time()))
+        except Exception:
+            pass
         self.logger.info(f"⏱️ Ciclo durato {cycle_duration:.1f}s")
         self.logger.info("="*80)
         self.logger.info("⏰ Next cycle in 2 hours (7200 seconds)...")
@@ -312,6 +320,9 @@ class AutonomousTradingBot:
                 # ═══════════════════════════════════════════
                 
                 current_price = ticker['last']
+                if not current_price or current_price <= 0:
+                    self.logger.error(f'🚨 Prezzo invalido {symbol}: {current_price} - skip')
+                    continue  # price_invalid
 
                 action, reason = self.risk_manager.check_position_exits(symbol, current_price)
 
@@ -357,6 +368,13 @@ class AutonomousTradingBot:
 
             except Exception as e:
                 self.logger.error(f"❌ Error checking {symbol}: {e}")
+                if self.TELEGRAM_ENABLED and self.notifier:
+                    self.notifier.send_message(
+                        f"🚨 <b>ERRORE POSIZIONE</b>\n"
+                        f"Symbol: <b>{symbol}</b>\n"
+                        f"Errore: <code>{str(e)[:300]}</code>\n"
+                        f"Ciclo: {self.cycle_count}"
+                    )
                 self.safe_mgr.record_api_error(str(e))
 
     def _scan_for_opportunities(self):
@@ -473,6 +491,13 @@ class AutonomousTradingBot:
             
             except Exception as e:
                 self.logger.error(f"❌ Error scanning {symbol}: {e}")
+                if self.TELEGRAM_ENABLED and self.notifier:
+                    self.notifier.send_message(
+                        f"⚠️ <b>ERRORE SCANSIONE</b>\n"
+                        f"Symbol: <b>{symbol}</b>\n"
+                        f"Errore: <code>{str(e)[:300]}</code>\n"
+                        f"Ciclo: {self.cycle_count}"
+                    )
                 # ═══════════════════════════════════════════
                 # Track API errors (improvements)
                 # ═══════════════════════════════════════════
@@ -498,6 +523,42 @@ class AutonomousTradingBot:
         self.logger.info(f"   Positions: {len(self.risk_manager.positions)}")
         self.logger.info(f"   Daily PnL: ${self.daily_pnl:+.2f}")
 
+
+    def _reset_daily_pnl_if_needed(self):
+        """Reset daily_pnl ogni nuovo giorno"""
+        today = datetime.now().date()
+        last = getattr(self, "_last_reset_date", None)
+        if last != today:
+            self._last_reset_date = today
+            self.daily_pnl = 0.0
+            self.risk_manager.daily_pnl = 0
+            self.logger.info(f"🔄 Daily PnL reset: {today}")
+
+    def _send_health_check(self):
+        """Health check Telegram ogni 24h (12 cicli x 2h)"""
+        if not (self.TELEGRAM_ENABLED and self.notifier):
+            return
+        if self.cycle_count == 0 or self.cycle_count % 12 != 0:
+            return
+        metrics = self.risk_manager.get_portfolio_metrics()
+        total = metrics.get('total_trades', 0)
+        wr = metrics.get('win_rate', 0)
+        pos_list = ''.join(
+            f"  • {sym} @ ${pos['entry']:.2f}\n"
+            for sym, pos in self.risk_manager.positions.items()
+        ) or '  Nessuna'
+        self.notifier.send_message(
+            f"📊 <b>HEALTH CHECK 24H</b>\n"
+            f"━━━━━━━━━━━━━━━━━━\n"
+            f"💰 Capital: <b>${metrics['capital']:.2f}</b>\n"
+            f"📈 PnL: <b>{metrics['total_pnl_pct']:+.2f}%</b>\n"
+            f"🔄 Cicli: {self.cycle_count}\n"
+            f"💼 Trade: {total} | WR: {wr:.0f}%\n"
+            f"📌 Posizioni:\n{pos_list}\n"
+            f"✅ Sistema operativo"
+        )
+        self.logger.info('📊 Health check 24h inviato')
+
     def start(self):
         """
         Start autonomous trading - con improvements
@@ -514,6 +575,16 @@ class AutonomousTradingBot:
             self.logger.info("⌨️ Shutdown richiesto dall'utente")
         except Exception as e:
             self.logger.error(f"❌ Errore critico: {e}", exc_info=True)
+            if self.TELEGRAM_ENABLED and self.notifier:
+                import traceback
+                tb = traceback.format_exc()[-400:]
+                self.notifier.send_message(
+                    f"🚨🚨 <b>CRASH CRITICO BOT</b>\n"
+                    f"Errore: <code>{str(e)[:300]}</code>\n"
+                    f"Ciclo: {self.cycle_count}\n"
+                    f"Traceback:\n<code>{tb}</code>\n"
+                    f"⛔ Riavvia: ~/bot_control.sh start"
+                )
         finally:
             # ═══════════════════════════════════════════
             # Snapshot finale - FIX #2: CON TRAILING STATES
