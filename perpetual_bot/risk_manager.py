@@ -2,6 +2,7 @@
 Risk Manager for Perpetual Bot
 """
 import json
+import os
 from datetime import datetime, timedelta
 
 class RiskManager:
@@ -11,7 +12,8 @@ class RiskManager:
         with open(config_file) as f:
             self.config = json.load(f)
         
-        self.current_capital = self.config['capital']['initial']
+        self.capital_file = os.path.join(os.path.dirname(config_file), 'perpetual_data', 'capital.json')
+        self.current_capital = self._load_capital()
         self.daily_pnl = 0
         self.daily_trades = 0
         self.consecutive_losses = 0
@@ -122,9 +124,29 @@ class RiskManager:
         self.daily_pnl = 0
         self.daily_trades = 0
     
+    def _load_capital(self):
+        try:
+            if os.path.exists(self.capital_file):
+                with open(self.capital_file) as f:
+                    data = json.load(f)
+                    return data.get('capital', self.config['capital']['initial'])
+        except Exception:
+            pass
+        return self.config['capital']['initial']
+
+    def _save_capital(self):
+        try:
+            os.makedirs(os.path.dirname(self.capital_file), exist_ok=True)
+            tmp = self.capital_file + '.tmp'
+            with open(tmp, 'w') as f:
+                json.dump({'capital': self.current_capital, 'updated': datetime.now().isoformat()}, f)
+            os.replace(tmp, self.capital_file)
+        except Exception as e:
+            print(f'Warning: capital save failed: {e}')
+
     def update_capital(self, new_capital):
-        """Update current capital"""
         self.current_capital = new_capital
+        self._save_capital()
 
 if __name__ == "__main__":
     # Test risk manager
