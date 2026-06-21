@@ -328,8 +328,14 @@ class PositionRiskManager:
             return False, "No position to close"
 
         pos = self.positions[symbol]
-        pnl = (exit_price - pos['entry']) * pos['size']
-        pnl_pct = ((exit_price - pos['entry']) / pos['entry']) * 100
+        side = pos.get('side', 'BUY')
+        is_long = (side == 'BUY')
+        if is_long:
+            pnl = (exit_price - pos['entry']) * pos['size']
+            pnl_pct = ((exit_price - pos['entry']) / pos['entry']) * 100
+        else:
+            pnl = (pos['entry'] - exit_price) * pos['size']
+            pnl_pct = ((pos['entry'] - exit_price) / pos['entry']) * 100
         # 🛡️ WARNING PnL anomalo (solo log)
         if abs(pnl_pct) > 1000:
             import logging
@@ -340,6 +346,7 @@ class PositionRiskManager:
 
         trade = {
             'symbol': symbol,
+            'side': side,
             'entry': pos['entry'],
             'exit': exit_price,
             'size': pos['size'],
