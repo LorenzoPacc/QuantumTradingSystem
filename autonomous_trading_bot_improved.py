@@ -332,11 +332,11 @@ class AutonomousTradingBot:
                     # Get position data before closing
                     pos = self.risk_manager.positions[symbol]
                     entry_price = pos['entry']
-                    pnl = ((current_price - entry_price) / entry_price) * 100
-                    pnl_dollars = (current_price - entry_price) * pos.get('size', 0)
-
                     success, msg = self.risk_manager.close_position(symbol, current_price, reason)
                     self.logger.info(f"      {msg}")
+                    last_trade = self.risk_manager.trades[-1] if success and self.risk_manager.trades else None
+                    pnl = last_trade['pnl_pct'] if last_trade else 0
+                    pnl_dollars = last_trade['pnl'] if last_trade else 0
                     
                     # ═══════════════════════════════════════════
                     # Tracking
