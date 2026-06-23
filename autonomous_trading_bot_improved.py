@@ -319,7 +319,7 @@ class AutonomousTradingBot:
                     continue
                 # ═══════════════════════════════════════════
                 
-                current_price = ticker['last']
+                current_price = ticker.get('last')
                 if not current_price or current_price <= 0:
                     self.logger.error(f'🚨 Prezzo invalido {symbol}: {current_price} - skip')
                     continue  # price_invalid

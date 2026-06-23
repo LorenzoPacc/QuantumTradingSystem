@@ -264,8 +264,12 @@ class PerpetualBot:
             # Get current price
             try:
                 ticker = self.exchange.fetch_ticker(symbol)
-                current_price = ticker['last']
-            except:
+                current_price = ticker.get('last')
+                if not current_price or current_price <= 0:
+                    self.logger.error(f"🚨 Prezzo invalido per {symbol}: {current_price} - skip")
+                    continue
+            except Exception as e:
+                self.logger.error(f"❌ Errore fetch_ticker per {symbol}: {e}")
                 continue
             
             # Calculate PnL
