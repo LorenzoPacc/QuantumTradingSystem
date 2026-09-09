@@ -32,6 +32,8 @@ CODE_FILES = [
 OPS_FILES = [
     "ops/bot_control.sh",
     "ops/bot_watchdog.sh",
+    "ops/connection_monitor.sh",
+    "ops/bot_health_check.sh",
 ]
 
 
