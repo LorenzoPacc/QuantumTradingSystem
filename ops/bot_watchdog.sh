@@ -9,7 +9,7 @@ BOT_DIR="$HOME/trading_project/QuantumTradingSystem"
 BOT_SCRIPT="autonomous_trading_bot_improved.py"
 PID_FILE="$BOT_DIR/bot.pid"
 CYCLE_FILE="$BOT_DIR/last_cycle.txt"
-CONTROL_SCRIPT="$HOME/bot_control.sh"
+CONTROL_SCRIPT="$BOT_DIR/ops/bot_control.sh"
 
 LOG_FILE="$HOME/bot_watchdog.log"
 ENV_FILE="$BOT_DIR/.env"

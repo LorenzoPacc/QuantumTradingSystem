@@ -8,9 +8,9 @@ BOT_DIR=~/trading_project/QuantumTradingSystem
 BOT_SCRIPT=autonomous_trading_bot_improved.py
 PID_FILE="$BOT_DIR/bot.pid"
 CONTROL_LOCK="/tmp/quantum_v37_control_${UID}.lock"
-WATCHDOG_SCRIPT=/home/orenzo/bot_watchdog.sh
-CONNECTION_SCRIPT=/home/orenzo/connection_monitor.sh
-HEALTH_SCRIPT=/home/orenzo/bot_health_check.sh
+WATCHDOG_SCRIPT="$BOT_DIR/ops/bot_watchdog.sh"
+CONNECTION_SCRIPT="$BOT_DIR/ops/connection_monitor.sh"
+HEALTH_SCRIPT="$BOT_DIR/ops/bot_health_check.sh"
 
 # ─────────────────────────────────────────────
 # FUNZIONI CORE
