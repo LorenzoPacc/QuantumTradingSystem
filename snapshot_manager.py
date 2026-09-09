@@ -109,10 +109,26 @@ def init_snapshot_manager(config_path: str = "bot_improvements_config.json") -> 
         return SnapshotManager({"enabled": False})
 
 
-def save_bot_state(snapshot_mgr, cycle, capital, positions, trailing_states, daily_pnl, **kwargs):
-    if not snapshot_mgr.should_save(cycle):
+def save_bot_state(
+    snapshot_mgr,
+    cycle,
+    capital,
+    positions,
+    trailing_states,
+    daily_pnl,
+    force=False,
+    **kwargs
+):
+    """
+    Salva snapshot periodico oppure, con force=True,
+    forza un checkpoint indipendentemente dal ciclo.
+    """
+    if not force and not snapshot_mgr.should_save(cycle):
         return False
-    
+
+    if not snapshot_mgr.enabled:
+        return False
+
     state = {
         "capital": capital,
         "positions": positions,
@@ -120,7 +136,7 @@ def save_bot_state(snapshot_mgr, cycle, capital, positions, trailing_states, dai
         "daily_pnl": daily_pnl,
         **kwargs
     }
-    
+
     return snapshot_mgr.save(state, cycle)
 
 

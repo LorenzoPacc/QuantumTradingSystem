@@ -2,7 +2,14 @@ import json
 import tempfile
 import shutil
 import os
+import math
 from datetime import datetime
+
+
+class StatePersistenceError(RuntimeError):
+    """Errore fatale di persistenza dello stato PAPER."""
+    pass
+
 
 class PositionRiskManager:
     def __init__(self, initial_capital):
@@ -22,13 +29,44 @@ class PositionRiskManager:
 
         self.positions_file = 'paper_trading_30d/positions.json'
         self.trades_file = 'paper_trading_30d/trades.json'
+        self.portfolio_file = 'paper_trading_30d/portfolio.json'
+
+        # B14: write-ahead journal per transazioni multi-file
+        self.transaction_file = 'paper_trading_30d/transaction_pending.json'
+
+        # Se il processo precedente è morto durante un commit,
+        # completa il roll-forward PRIMA del load fail-safe B19.
+        self._recover_pending_transaction()
+
+        # B19: i file persistenti costituiscono un unico stato logico.
+        # Tutti assenti = primo avvio consentito.
+        # Solo alcuni presenti = stato incompleto, avvio vietato.
+        state_files = [
+            self.positions_file,
+            self.trades_file,
+            self.portfolio_file,
+        ]
+        existing_state_files = [
+            path for path in state_files if os.path.exists(path)
+        ]
+
+        if existing_state_files and len(existing_state_files) != len(state_files):
+            missing = [
+                path for path in state_files if not os.path.exists(path)
+            ]
+            raise RuntimeError(
+                "Persisted state incompleto. "
+                f"Presenti: {existing_state_files}; mancanti: {missing}"
+            )
+
+        self._fresh_state = not existing_state_files
 
         # Load existing data
         self.positions = self._load_positions()
         self.trades = self._load_trades()
-        self.portfolio_file = 'paper_trading_30d/portfolio.json'
         saved_capital = self._load_capital()
-        if saved_capital and saved_capital > 0:
+
+        if saved_capital is not None:
             self.current_capital = saved_capital
         self.daily_pnl = 0
         self.max_drawdown = 0
@@ -39,115 +77,577 @@ class PositionRiskManager:
         for field in required:
             if field not in pos:
                 return False, f'Campo mancante: {field}'
-        if pos['entry'] < 100:
-            return False, f"Entry anomala: ${pos['entry']}"
-        if pos['size'] <= 0:
-            return False, f"Size invalida: {pos['size']}"
-        if pos['stop_loss'] <= 0:
-            return False, f"Stop loss invalido: {pos['stop_loss']}"
+        # Validazione numerica: nessuna soglia assoluta sul prezzo.
+        # Un asset valido può avere prezzo inferiore a $100.
+        for field in ('entry', 'size', 'stop_loss'):
+            value = pos[field]
+            if isinstance(value, bool) or not isinstance(value, (int, float)):
+                return False, f"{field} non numerico: {value}"
+            if not math.isfinite(value) or value <= 0:
+                return False, f"{field} invalido: {value}"
+
         if pos['side'] not in ['BUY', 'SELL']:
             return False, f"Side invalido: {pos['side']}"
+
+        # take_profit è opzionale, ma se presente deve essere valido.
+        take_profit = pos.get('take_profit')
+        if take_profit is not None:
+            if isinstance(take_profit, bool) or not isinstance(take_profit, (int, float)):
+                return False, f"Take profit non numerico: {take_profit}"
+            if not math.isfinite(take_profit) or take_profit <= 0:
+                return False, f"Take profit invalido: {take_profit}"
+
         return True, 'OK'
 
-    def _load_positions(self):
-        """Load positions from file"""
-        if os.path.exists(self.positions_file):
+    def _fsync_directory(self, directory):
+        """Forza su disco anche le modifiche alla directory."""
+        flags = os.O_RDONLY
+        if hasattr(os, 'O_DIRECTORY'):
+            flags |= os.O_DIRECTORY
+
+        fd = os.open(directory, flags)
+        try:
+            os.fsync(fd)
+        finally:
+            os.close(fd)
+
+    def _atomic_write_json(self, path, data):
+        """Scrive un JSON atomicamente e propaga qualsiasi errore."""
+        directory = os.path.dirname(os.path.abspath(path))
+        os.makedirs(directory, exist_ok=True)
+
+        fd, tmp_path = tempfile.mkstemp(
+            dir=directory,
+            prefix='.tmp_state_'
+        )
+
+        try:
+            with os.fdopen(fd, 'w') as f:
+                json.dump(data, f, indent=2)
+                f.flush()
+                os.fsync(f.fileno())
+
+            os.replace(tmp_path, path)
+            self._fsync_directory(directory)
+
+        except Exception as e:
             try:
-                with open(self.positions_file, 'r') as f:
-                    raw = json.load(f)
-                    clean = {}
-                    for symbol, pos in raw.items():
-                        valid, reason = self._validate_position(symbol, pos)
-                        if valid:
-                            clean[symbol] = pos
-                        else:
-                            import logging
-                            logging.getLogger('PositionRiskManager').error(
-                                f'🚨 POSIZIONE SCARTATA: {symbol} - {reason}'
-                            )
-                    return clean
-            except:
+                if os.path.exists(tmp_path):
+                    os.unlink(tmp_path)
+            except OSError:
                 pass
-        return {}
+
+            raise StatePersistenceError(
+                f"Atomic write fallita per {path}: {e}"
+            ) from e
+
+    def _validate_transaction_payload(self, journal):
+        """Valida il journal prima di usarlo per il recovery."""
+        if not isinstance(journal, dict):
+            raise RuntimeError("Transaction journal non è un dict")
+
+        if journal.get('version') != 1:
+            raise RuntimeError(
+                f"Transaction journal version non valida: "
+                f"{journal.get('version')}"
+            )
+
+        positions = journal.get('positions')
+        trades = journal.get('trades')
+        portfolio = journal.get('portfolio')
+
+        if not isinstance(positions, dict):
+            raise RuntimeError(
+                "Transaction journal: positions non è dict"
+            )
+
+        if not isinstance(trades, list):
+            raise RuntimeError(
+                "Transaction journal: trades non è list"
+            )
+
+        if len(trades) > 10000:
+            raise RuntimeError(
+                f"Transaction journal: troppi trade ({len(trades)})"
+            )
+
+        if not isinstance(portfolio, dict):
+            raise RuntimeError(
+                "Transaction journal: portfolio non è dict"
+            )
+
+        for symbol, pos in positions.items():
+            if not isinstance(symbol, str) or not symbol:
+                raise RuntimeError(
+                    f"Transaction journal: symbol invalido {symbol!r}"
+                )
+
+            if not isinstance(pos, dict):
+                raise RuntimeError(
+                    f"Transaction journal: posizione {symbol} non è dict"
+                )
+
+            valid, reason = self._validate_position(symbol, pos)
+            if not valid:
+                raise RuntimeError(
+                    f"Transaction journal: posizione {symbol} "
+                    f"invalida: {reason}"
+                )
+
+        required_trade = (
+            'symbol', 'entry', 'exit', 'size',
+            'pnl', 'pnl_pct', 'closed_at'
+        )
+
+        for index, trade in enumerate(trades):
+            if not isinstance(trade, dict):
+                raise RuntimeError(
+                    f"Transaction journal: trade #{index + 1} non è dict"
+                )
+
+            for field in required_trade:
+                if field not in trade:
+                    raise RuntimeError(
+                        f"Transaction journal: trade #{index + 1} "
+                        f"manca {field}"
+                    )
+
+            for field in ('entry', 'exit', 'size'):
+                value = trade[field]
+                if (
+                    isinstance(value, bool)
+                    or not isinstance(value, (int, float))
+                    or not math.isfinite(value)
+                    or value <= 0
+                ):
+                    raise RuntimeError(
+                        f"Transaction journal: trade #{index + 1} "
+                        f"{field} invalido"
+                    )
+
+            for field in ('pnl', 'pnl_pct'):
+                value = trade[field]
+                if (
+                    isinstance(value, bool)
+                    or not isinstance(value, (int, float))
+                    or not math.isfinite(value)
+                ):
+                    raise RuntimeError(
+                        f"Transaction journal: trade #{index + 1} "
+                        f"{field} invalido"
+                    )
+
+            if (
+                'side' in trade
+                and trade['side'] not in ('BUY', 'SELL')
+            ):
+                raise RuntimeError(
+                    f"Transaction journal: trade #{index + 1} "
+                    f"side invalido"
+                )
+
+        for field in ('capital', 'initial_capital', 'total_pnl'):
+            if field not in portfolio:
+                raise RuntimeError(
+                    f"Transaction journal: portfolio manca {field}"
+                )
+
+            value = portfolio[field]
+            if (
+                isinstance(value, bool)
+                or not isinstance(value, (int, float))
+                or not math.isfinite(value)
+            ):
+                raise RuntimeError(
+                    f"Transaction journal: portfolio {field} invalido"
+                )
+
+        capital = float(portfolio['capital'])
+        initial = float(portfolio['initial_capital'])
+        total = float(portfolio['total_pnl'])
+
+        if capital <= 0 or initial <= 0:
+            raise RuntimeError(
+                "Transaction journal: capitale non positivo"
+            )
+
+        if not math.isclose(
+            total,
+            capital - initial,
+            rel_tol=1e-12,
+            abs_tol=1e-9
+        ):
+            raise RuntimeError(
+                "Transaction journal: portfolio aritmeticamente incoerente"
+            )
+
+        return positions, trades, portfolio
+
+    def _recover_pending_transaction(self):
+        """
+        Roll-forward idempotente di una transazione interrotta.
+
+        Journal presente = il commit precedente non è stato
+        definitivamente completato.
+        """
+        if not os.path.exists(self.transaction_file):
+            return False
+
+        print(
+            "⚠️ B14: transazione incompleta rilevata - "
+            "avvio recovery"
+        )
+
+        try:
+            with open(self.transaction_file, 'r') as f:
+                journal = json.load(f)
+        except Exception as e:
+            raise StatePersistenceError(
+                f"Transaction journal illeggibile: {e}"
+            ) from e
+
+        positions, trades, portfolio = (
+            self._validate_transaction_payload(journal)
+        )
+
+        # Roll-forward: operazione idempotente.
+        self._atomic_write_json(self.positions_file, positions)
+        self._atomic_write_json(self.trades_file, trades)
+        self._atomic_write_json(self.portfolio_file, portfolio)
+
+        directory = os.path.dirname(
+            os.path.abspath(self.transaction_file)
+        )
+
+        try:
+            os.unlink(self.transaction_file)
+            self._fsync_directory(directory)
+        except Exception as e:
+            raise StatePersistenceError(
+                f"Impossibile finalizzare recovery B14: {e}"
+            ) from e
+
+        print("✅ B14: recovery transazione completato")
+        return True
+
+    def _commit_state_transaction(
+        self,
+        positions,
+        trades,
+        portfolio
+    ):
+        """
+        Commit recuperabile di positions + trades + portfolio.
+
+        1. journal atomicamente
+        2. tre file atomicamente
+        3. rimozione journal
+        """
+        if os.path.exists(self.transaction_file):
+            raise StatePersistenceError(
+                "Esiste già transaction_pending.json: "
+                "rifiuto nuovo commit"
+            )
+
+        journal = {
+            'version': 1,
+            'created_at': datetime.now().isoformat(),
+            'positions': positions,
+            'trades': trades,
+            'portfolio': portfolio,
+        }
+
+        # Valida prima di toccare qualsiasi file persistente.
+        try:
+            self._validate_transaction_payload(journal)
+        except Exception as e:
+            raise StatePersistenceError(
+                f"Payload transazione B14 invalido: {e}"
+            ) from e
+
+        # WAL: il journal deve esistere PRIMA del primo file dati.
+        self._atomic_write_json(
+            self.transaction_file,
+            journal
+        )
+
+        try:
+            self._atomic_write_json(
+                self.positions_file,
+                positions
+            )
+            self._atomic_write_json(
+                self.trades_file,
+                trades
+            )
+            self._atomic_write_json(
+                self.portfolio_file,
+                portfolio
+            )
+
+            directory = os.path.dirname(
+                os.path.abspath(self.transaction_file)
+            )
+
+            os.unlink(self.transaction_file)
+            self._fsync_directory(directory)
+
+        except Exception as e:
+            # NON rimuovere il journal:
+            # servirà per il roll-forward al prossimo avvio.
+            raise StatePersistenceError(
+                "Commit stato B14 interrotto. "
+                "Journal conservato per recovery: "
+                f"{e}"
+            ) from e
+
+    def _load_positions(self):
+        """Load positions fail-safe"""
+        if not os.path.exists(self.positions_file):
+            if self._fresh_state:
+                return {}
+            raise RuntimeError(
+                f"File posizioni mancante: {self.positions_file}"
+            )
+
+        try:
+            with open(self.positions_file, 'r') as f:
+                raw = json.load(f)
+        except Exception as e:
+            raise RuntimeError(
+                f"Impossibile leggere {self.positions_file}: {e}"
+            ) from e
+
+        if not isinstance(raw, dict):
+            raise RuntimeError(
+                f"{self.positions_file}: schema invalido, atteso dict "
+                f"ma trovato {type(raw).__name__}"
+            )
+
+        clean = {}
+
+        for symbol, pos in raw.items():
+            if not isinstance(symbol, str) or not symbol:
+                raise RuntimeError(
+                    f"{self.positions_file}: simbolo posizione invalido: {symbol!r}"
+                )
+
+            if not isinstance(pos, dict):
+                raise RuntimeError(
+                    f"{self.positions_file}: posizione {symbol} non è un dict"
+                )
+
+            valid, reason = self._validate_position(symbol, pos)
+
+            if not valid:
+                raise RuntimeError(
+                    f"{self.positions_file}: posizione {symbol} invalida: {reason}"
+                )
+
+            clean[symbol] = pos
+
+        return clean
 
     def _save_positions(self):
-        """Save positions to file - ATOMIC WRITE"""
-        try:
-            os.makedirs('paper_trading_30d', exist_ok=True)
-            dir_name = os.path.dirname(os.path.abspath(self.positions_file))
-            fd, tmp_path = tempfile.mkstemp(dir=dir_name, prefix='.tmp_positions_')
-            try:
-                with os.fdopen(fd, 'w') as f:
-                    json.dump(self.positions, f, indent=2)
-                shutil.move(tmp_path, self.positions_file)
-            except Exception:
-                os.unlink(tmp_path)
-                raise
-        except Exception as e:
-            print(f"Error saving positions: {e}")
+        """Save positions - B14 atomic/fail-fast"""
+        self._atomic_write_json(
+            self.positions_file,
+            self.positions
+        )
 
     def _load_trades(self):
-        """Load trade history"""
-        if os.path.exists(self.trades_file):
-            try:
-                with open(self.trades_file, 'r') as f:
-                    data = json.load(f)
-                if not isinstance(data, list):
-                    import logging
-                    logging.getLogger('PositionRiskManager').error(
-                        f'🚨 trades.json schema errato: atteso list, trovato {type(data)}'
-                    )
-                    return []
-                return data
-            except Exception as e:
-                import logging
-                logging.getLogger('PositionRiskManager').error(
-                    f'❌ Errore caricamento trades.json: {e}'
+        """Load trade history fail-safe, compatibile con record legacy"""
+        if not os.path.exists(self.trades_file):
+            if self._fresh_state:
+                return []
+            raise RuntimeError(
+                f"File trade mancante: {self.trades_file}"
+            )
+
+        try:
+            with open(self.trades_file, 'r') as f:
+                data = json.load(f)
+        except Exception as e:
+            raise RuntimeError(
+                f"Impossibile leggere {self.trades_file}: {e}"
+            ) from e
+
+        if not isinstance(data, list):
+            raise RuntimeError(
+                f"{self.trades_file}: schema invalido, atteso list "
+                f"ma trovato {type(data).__name__}"
+            )
+
+        required = (
+            'symbol', 'entry', 'exit', 'size',
+            'pnl', 'pnl_pct', 'closed_at'
+        )
+
+        numeric_positive = ('entry', 'exit', 'size')
+        numeric_finite = ('pnl', 'pnl_pct')
+
+        for index, trade in enumerate(data):
+            if not isinstance(trade, dict):
+                raise RuntimeError(
+                    f"{self.trades_file}: trade #{index + 1} non è un dict"
                 )
-        return []
+
+            for field in required:
+                if field not in trade:
+                    raise RuntimeError(
+                        f"{self.trades_file}: trade #{index + 1} "
+                        f"manca il campo {field}"
+                    )
+
+            symbol = trade['symbol']
+            if not isinstance(symbol, str) or not symbol:
+                raise RuntimeError(
+                    f"{self.trades_file}: trade #{index + 1} "
+                    f"symbol invalido: {symbol!r}"
+                )
+
+            for field in numeric_positive:
+                value = trade[field]
+                if isinstance(value, bool) or not isinstance(value, (int, float)):
+                    raise RuntimeError(
+                        f"{self.trades_file}: trade #{index + 1} "
+                        f"{field} non numerico"
+                    )
+                if not math.isfinite(value) or value <= 0:
+                    raise RuntimeError(
+                        f"{self.trades_file}: trade #{index + 1} "
+                        f"{field} invalido: {value}"
+                    )
+
+            for field in numeric_finite:
+                value = trade[field]
+                if isinstance(value, bool) or not isinstance(value, (int, float)):
+                    raise RuntimeError(
+                        f"{self.trades_file}: trade #{index + 1} "
+                        f"{field} non numerico"
+                    )
+                if not math.isfinite(value):
+                    raise RuntimeError(
+                        f"{self.trades_file}: trade #{index + 1} "
+                        f"{field} non finito: {value}"
+                    )
+
+            closed_at = trade['closed_at']
+            if not isinstance(closed_at, str) or not closed_at:
+                raise RuntimeError(
+                    f"{self.trades_file}: trade #{index + 1} "
+                    "closed_at invalido"
+                )
+
+            # Compatibilità legacy: i primi trade possono non avere side.
+            # Se side esiste, però, deve essere valido.
+            if 'side' in trade and trade['side'] not in ('BUY', 'SELL'):
+                raise RuntimeError(
+                    f"{self.trades_file}: trade #{index + 1} "
+                    f"side invalido: {trade['side']}"
+                )
+
+        return data
 
     def _load_capital(self):
-        """Load capital from portfolio.json"""
+        """Load capital from portfolio.json fail-safe"""
+        if not os.path.exists(self.portfolio_file):
+            if self._fresh_state:
+                return None
+            raise RuntimeError(
+                f"File portfolio mancante: {self.portfolio_file}"
+            )
+
         try:
-            if os.path.exists(self.portfolio_file):
-                with open(self.portfolio_file, 'r') as f:
-                    data = json.load(f)
-                capital = data.get('capital', 0)
-                if capital > 0:
-                    return capital
-        except:
-            pass
-        return None
+            with open(self.portfolio_file, 'r') as f:
+                data = json.load(f)
+        except Exception as e:
+            raise RuntimeError(
+                f"Impossibile leggere {self.portfolio_file}: {e}"
+            ) from e
+
+        if not isinstance(data, dict):
+            raise RuntimeError(
+                f"{self.portfolio_file}: schema invalido, atteso dict "
+                f"ma trovato {type(data).__name__}"
+            )
+
+        required = ('capital', 'initial_capital', 'total_pnl')
+
+        for field in required:
+            if field not in data:
+                raise RuntimeError(
+                    f"{self.portfolio_file}: campo mancante: {field}"
+                )
+
+            value = data[field]
+            if isinstance(value, bool) or not isinstance(value, (int, float)):
+                raise RuntimeError(
+                    f"{self.portfolio_file}: {field} non numerico"
+                )
+
+            if not math.isfinite(value):
+                raise RuntimeError(
+                    f"{self.portfolio_file}: {field} non finito"
+                )
+
+        capital = float(data['capital'])
+        initial = float(data['initial_capital'])
+        total_pnl = float(data['total_pnl'])
+
+        if capital <= 0:
+            raise RuntimeError(
+                f"{self.portfolio_file}: capital invalido: {capital}"
+            )
+
+        if initial <= 0:
+            raise RuntimeError(
+                f"{self.portfolio_file}: initial_capital invalido: {initial}"
+            )
+
+        expected_total = capital - initial
+
+        if not math.isclose(
+            total_pnl,
+            expected_total,
+            rel_tol=1e-12,
+            abs_tol=1e-9
+        ):
+            raise RuntimeError(
+                f"{self.portfolio_file}: total_pnl incoerente. "
+                f"Salvato={total_pnl}, atteso={expected_total}"
+            )
+
+        return capital
 
     def _save_capital(self):
-        """Save capital to portfolio.json"""
-        try:
-            os.makedirs('paper_trading_30d', exist_ok=True)
-            data = {
-                'capital': self.current_capital,
-                'initial_capital': self.initial_capital,
-                'total_pnl': self.current_capital - self.initial_capital,
-                'last_updated': datetime.now().isoformat()
-            }
-            with open(self.portfolio_file, 'w') as f:
-                json.dump(data, f, indent=2)
-        except Exception as e:
-            print(f"Error saving capital: {e}")
+        """Save capital - B14 atomic/fail-fast"""
+        data = {
+            'capital': self.current_capital,
+            'initial_capital': self.initial_capital,
+            'total_pnl': (
+                self.current_capital - self.initial_capital
+            ),
+            'last_updated': datetime.now().isoformat()
+        }
+
+        self._atomic_write_json(
+            self.portfolio_file,
+            data
+        )
 
     def _save_trades(self):
+        """Save trade history - B14 atomic/fail-fast"""
         if len(self.trades) > 10000:
-            import logging
-            logging.getLogger('PositionRiskManager').error(
-                f'🚨 trades.json anomalo: {len(self.trades)} trade - possibile loop'
+            raise RuntimeError(
+                f"trades.json anomalo: {len(self.trades)} trade "
+                "- possibile loop"
             )
-            return
-        """Save trade history"""
-        try:
-            os.makedirs('paper_trading_30d', exist_ok=True)
-            with open(self.trades_file, 'w') as f:
-                json.dump(self.trades, f, indent=2)
-        except Exception as e:
-            print(f"Error saving trades: {e}")
+
+        self._atomic_write_json(
+            self.trades_file,
+            self.trades
+        )
 
     def can_open_position(self, symbol):
         """Check if can open new position"""
@@ -161,53 +661,139 @@ class PositionRiskManager:
         if total_exposure / self.current_capital > self.MAX_PORTFOLIO_EXPOSURE:
             return False, "Max portfolio exposure reached"
 
-        if abs(self.daily_pnl) > self.MAX_DAILY_LOSS * self.initial_capital:
+        daily_loss_limit = self.MAX_DAILY_LOSS * self.initial_capital
+        if self.daily_pnl <= -daily_loss_limit:
             return False, "Daily loss limit reached"
 
         return True, "OK"
 
     def calculate_position_size(self, signal, symbol):
-        """Calculate position size using Kelly Criterion"""
+        """Calculate position size from configured risk per trade"""
         risk_amount = self.current_capital * self.MAX_RISK_PER_TRADE
 
-        entry = signal['entry']
-        stop_loss = signal.get('stop_loss', entry * 0.97)
+        side = signal.get('signal')
+        if side not in ['BUY', 'SELL']:
+            return 0
+
+        try:
+            entry = float(signal['entry'])
+        except (KeyError, TypeError, ValueError):
+            return 0
+
+        if not math.isfinite(entry) or entry <= 0:
+            return 0
+
+        if side == 'BUY':
+            default_stop_loss = entry * 0.97
+        else:
+            default_stop_loss = entry * 1.03
+
+        try:
+            stop_loss = float(
+                signal.get('stop_loss', default_stop_loss)
+            )
+        except (TypeError, ValueError):
+            return 0
+
+        if not math.isfinite(stop_loss) or stop_loss <= 0:
+            return 0
+
         risk_per_unit = abs(entry - stop_loss)
 
-        if risk_per_unit == 0:
+        if not math.isfinite(risk_per_unit) or risk_per_unit <= 0:
             return 0
 
         size = risk_amount / risk_per_unit
         max_position_value = self.current_capital * 0.10
         max_size = max_position_value / entry
 
+        if not math.isfinite(size) or not math.isfinite(max_size):
+            return 0
+
         return min(size, max_size)
 
     def open_position(self, symbol, signal, size):
         """Open new position"""
-        if size <= 0:
+        try:
+            size = float(size)
+        except (TypeError, ValueError):
+            return False, "Invalid size"
+
+        if not math.isfinite(size) or size <= 0:
             return False, "Invalid size"
 
         can_open, reason = self.can_open_position(symbol)
         if not can_open:
             return False, reason
 
-        entry = signal['entry']
-        # 🛡️ VALIDAZIONE ENTRY PRICE
-        if entry < 100:
-            import logging
-            logging.getLogger('PositionRiskManager').error(
-                f"🚨 ENTRY ANOMALA BLOCCATA: {symbol} entry=${entry}"
+        side = signal.get('signal')
+        if side not in ['BUY', 'SELL']:
+            return False, f"Invalid side: {side}"
+
+        try:
+            entry = float(signal['entry'])
+        except (KeyError, TypeError, ValueError):
+            return False, "Invalid entry price"
+
+        # B4: niente soglia universale $100.
+        # Il prezzo deve semplicemente essere positivo e finito.
+        if not math.isfinite(entry) or entry <= 0:
+            return False, f"Invalid entry price: {entry}"
+
+        # B6/B7: fallback direction-aware.
+        if side == 'BUY':
+            default_stop_loss = entry * 0.97
+            default_take_profit = entry * (1 + self.TAKE_PROFIT_2)
+        else:
+            default_stop_loss = entry * 1.03
+            default_take_profit = entry * (1 - self.TAKE_PROFIT_2)
+
+        try:
+            initial_stop_loss = float(
+                signal.get('stop_loss', default_stop_loss)
             )
-            return False, f"Entry anomala bloccata: ${entry}"
-        initial_stop_loss = signal.get('stop_loss', entry * 0.97)
-        
+            take_profit = float(
+                signal.get('take_profit', default_take_profit)
+            )
+        except (TypeError, ValueError):
+            return False, "Invalid stop loss/take profit"
+
+        if not math.isfinite(initial_stop_loss) or initial_stop_loss <= 0:
+            return False, f"Invalid stop loss: {initial_stop_loss}"
+
+        if not math.isfinite(take_profit) or take_profit <= 0:
+            return False, f"Invalid take profit: {take_profit}"
+
+        # B5: geometria obbligatoria al momento dell'apertura.
+        if side == 'BUY':
+            if initial_stop_loss >= entry:
+                return False, (
+                    f"Invalid BUY stop loss: SL ${initial_stop_loss:.4f} "
+                    f"must be below entry ${entry:.4f}"
+                )
+            if take_profit <= entry:
+                return False, (
+                    f"Invalid BUY take profit: TP ${take_profit:.4f} "
+                    f"must be above entry ${entry:.4f}"
+                )
+        else:
+            if initial_stop_loss <= entry:
+                return False, (
+                    f"Invalid SELL stop loss: SL ${initial_stop_loss:.4f} "
+                    f"must be above entry ${entry:.4f}"
+                )
+            if take_profit >= entry:
+                return False, (
+                    f"Invalid SELL take profit: TP ${take_profit:.4f} "
+                    f"must be below entry ${entry:.4f}"
+                )
+
         self.positions[symbol] = {
             'entry': entry,
             'size': size,
-            'side': signal['signal'],
+            'side': side,
             'stop_loss': initial_stop_loss,
-            'take_profit': signal.get('take_profit', entry * (1 + self.TAKE_PROFIT_2)),
+            'take_profit': take_profit,
             'opened_at': datetime.now().isoformat(),
             'highest_price': entry,
             'trailing_active': False,
@@ -360,15 +946,37 @@ class PositionRiskManager:
             'breakeven_was_active': pos.get('breakeven_activated', False)
         }
 
-        self.trades.append(trade)
-        self.current_capital += pnl
-        self.daily_pnl += pnl
-        self._save_capital()
+        # B14: costruisci lo stato futuro SENZA modificare
+        # ancora lo stato RAM corrente.
+        new_trades = list(self.trades)
+        new_trades.append(trade)
 
-        del self.positions[symbol]
+        new_positions = dict(self.positions)
+        del new_positions[symbol]
 
-        self._save_positions()
-        self._save_trades()
+        new_capital = self.current_capital + pnl
+        new_daily_pnl = self.daily_pnl + pnl
+
+        new_portfolio = {
+            'capital': new_capital,
+            'initial_capital': self.initial_capital,
+            'total_pnl': new_capital - self.initial_capital,
+            'last_updated': datetime.now().isoformat()
+        }
+
+        # Commit recuperabile su disco.
+        # Se fallisce, solleva eccezione e conserva il journal.
+        self._commit_state_transaction(
+            positions=new_positions,
+            trades=new_trades,
+            portfolio=new_portfolio
+        )
+
+        # Solo DOPO commit completato aggiorna la RAM.
+        self.positions = new_positions
+        self.trades = new_trades
+        self.current_capital = new_capital
+        self.daily_pnl = new_daily_pnl
 
         return True, f"Closed with PnL: {pnl_pct:+.2f}%"
 

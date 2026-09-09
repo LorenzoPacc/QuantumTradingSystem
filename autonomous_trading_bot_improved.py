@@ -12,14 +12,62 @@ CORREZIONI APPLICATE:
 
 import time
 import logging
+import os
+import sys
+import fcntl
+import signal
+import threading
 from datetime import datetime
 import ccxt
 
 from market_state_engine import MarketStateEngine
 from regime_controller import RegimeController
 from cost_calculator import CostCalculator
-from position_risk_manager import PositionRiskManager
+from position_risk_manager import PositionRiskManager, StatePersistenceError
 from telegram_notifier import TelegramNotifier
+
+
+# ═══════════════════════════════════════════
+# B17: PROCESS SINGLETON LOCK
+# Impedisce più istanze V37 anche se il bot
+# viene avviato manualmente senza bot_control.sh
+# ═══════════════════════════════════════════
+_SINGLETON_LOCK_HANDLE = None
+
+
+def _acquire_singleton_lock(lock_path=None):
+    global _SINGLETON_LOCK_HANDLE
+
+    if _SINGLETON_LOCK_HANDLE is not None:
+        return True, str(os.getpid())
+
+    if lock_path is None:
+        lock_path = f"/tmp/quantum_v37_{os.getuid()}.lock"
+
+    lock_handle = open(lock_path, "a+")
+
+    try:
+        fcntl.flock(
+            lock_handle.fileno(),
+            fcntl.LOCK_EX | fcntl.LOCK_NB
+        )
+    except BlockingIOError:
+        lock_handle.seek(0)
+        owner = lock_handle.read().strip() or "unknown"
+        lock_handle.close()
+        return False, owner
+
+    lock_handle.seek(0)
+    lock_handle.truncate()
+    lock_handle.write(str(os.getpid()))
+    lock_handle.flush()
+
+    # Il file descriptor deve rimanere aperto
+    # per tutta la vita del processo.
+    _SINGLETON_LOCK_HANDLE = lock_handle
+
+    return True, str(os.getpid())
+
 
 # ═══════════════════════════════════════════
 # IMPROVEMENTS - IMPORT
@@ -97,17 +145,17 @@ class AutonomousTradingBot:
         self.timeline = tracking['timeline']
         self.metrics = tracking['metrics']
         
-        # 6. Verifica snapshot precedente
-        restored_state = restore_bot_state(self.snapshot_mgr)
-        if restored_state:
-            logging.warning("⚠️ Stato recuperato da snapshot - avvio in SAFE MODE")
-            self.safe_mgr.manual_override('activate_safe_mode')
-            
-            # FIX #2: Recupera trailing states se presenti
-            if 'trailing_states' in restored_state:
-                logging.info("✅ Trailing states recuperati da snapshot")
-                # Potresti ripristinare lo stato qui se necessario
-        
+        # 6. B18: snapshot precedente SOLO diagnostico.
+        # Lo stato operativo ufficiale viene caricato dal
+        # PositionRiskManager con B14/B19.
+        snapshot_state = restore_bot_state(self.snapshot_mgr)
+
+        if snapshot_state:
+            logging.info(
+                "ℹ️ Snapshot precedente disponibile come checkpoint "
+                "diagnostico; stato live NON sovrascritto"
+            )
+
         print("✅ Improvements attivi")
         # ═══════════════════════════════════════════
 
@@ -366,6 +414,27 @@ class AutonomousTradingBot:
                             f"📝 Motivo: {reason}"
                         )
 
+            except StatePersistenceError as e:
+                self.logger.critical(
+                    f"🚨 ERRORE FATALE PERSISTENZA {symbol}: {e}"
+                )
+
+                if self.TELEGRAM_ENABLED and self.notifier:
+                    try:
+                        self.notifier.send_message(
+                            f"🚨 <b>ERRORE FATALE PERSISTENZA</b>\n"
+                            f"Symbol: <b>{symbol}</b>\n"
+                            f"Errore: <code>{str(e)[:300]}</code>\n"
+                            "⛔ V37 in arresto per proteggere lo stato"
+                        )
+                    except Exception as notify_error:
+                        self.logger.error(
+                            f"Errore notifica persistence failure: "
+                            f"{notify_error}"
+                        )
+
+                raise
+
             except Exception as e:
                 self.logger.error(f"❌ Error checking {symbol}: {e}")
                 if self.TELEGRAM_ENABLED and self.notifier:
@@ -489,6 +558,27 @@ class AutonomousTradingBot:
                     if reason:
                         self.logger.debug(f"   ⏸️ {symbol}: {reason}")
             
+            except StatePersistenceError as e:
+                self.logger.critical(
+                    f"🚨 ERRORE FATALE PERSISTENZA {symbol}: {e}"
+                )
+
+                if self.TELEGRAM_ENABLED and self.notifier:
+                    try:
+                        self.notifier.send_message(
+                            f"🚨 <b>ERRORE FATALE PERSISTENZA</b>\n"
+                            f"Symbol: <b>{symbol}</b>\n"
+                            f"Errore: <code>{str(e)[:300]}</code>\n"
+                            "⛔ V37 in arresto per proteggere lo stato"
+                        )
+                    except Exception as notify_error:
+                        self.logger.error(
+                            f"Errore notifica persistence failure: "
+                            f"{notify_error}"
+                        )
+
+                raise
+
             except Exception as e:
                 self.logger.error(f"❌ Error scanning {symbol}: {e}")
                 if self.TELEGRAM_ENABLED and self.notifier:
@@ -525,9 +615,38 @@ class AutonomousTradingBot:
 
 
     def _reset_daily_pnl_if_needed(self):
-        """Reset daily_pnl ogni nuovo giorno"""
+        """Reset giornaliero e ripristino PnL dopo restart"""
         today = datetime.now().date()
         last = getattr(self, "_last_reset_date", None)
+
+        # Primo ciclo del processo: non azzerare alla cieca.
+        # Ricostruisce il PnL dei trade già chiusi oggi.
+        if last is None:
+            today_key = today.isoformat()
+            reconstructed_pnl = 0.0
+
+            for trade in self.risk_manager.trades:
+                closed_at = trade.get("closed_at")
+
+                if isinstance(closed_at, str) and closed_at[:10] == today_key:
+                    try:
+                        reconstructed_pnl += float(trade.get("pnl", 0) or 0)
+                    except (TypeError, ValueError):
+                        self.logger.warning(
+                            f"⚠️ PnL non numerico ignorato nel daily restore: {trade}"
+                        )
+
+            self.daily_pnl = reconstructed_pnl
+            self.risk_manager.daily_pnl = reconstructed_pnl
+            self._last_reset_date = today
+
+            self.logger.info(
+                f"🔄 Daily PnL restored: {today} "
+                f"${reconstructed_pnl:+.2f}"
+            )
+            return
+
+        # Vero cambio di giornata durante lo stesso processo.
         if last != today:
             self._last_reset_date = today
             self.daily_pnl = 0.0
@@ -564,12 +683,33 @@ class AutonomousTradingBot:
         Start autonomous trading - con improvements
         """
         self.is_running = True
+        shutdown_event = threading.Event()
+
+        previous_sigterm_handler = signal.getsignal(signal.SIGTERM)
+
+        def _handle_sigterm(signum, frame):
+            self.logger.info(
+                "🛑 SIGTERM ricevuto - shutdown controllato richiesto"
+            )
+            self.is_running = False
+            shutdown_event.set()
+
+        signal.signal(signal.SIGTERM, _handle_sigterm)
+
         self.logger.info("🚀 Starting autonomous trading loop...")
 
         try:
             while self.is_running:
                 self.run_cycle()
-                time.sleep(7200)  # 120 minuti tra cicli  # 2 ore
+
+                if self.is_running:
+                    # B18f: attesa interrompibile da SIGTERM,
+                    # senza eccezioni asincrone dentro run_cycle().
+                    shutdown_event.wait(7200)
+
+            self.logger.info(
+                "🛑 Shutdown controllato richiesto dal sistema"
+            )
 
         except KeyboardInterrupt:
             self.logger.info("⌨️ Shutdown richiesto dall'utente")
@@ -586,6 +726,15 @@ class AutonomousTradingBot:
                     f"⛔ Riavvia: ~/bot_control.sh start"
                 )
         finally:
+            # Ripristina l'handler precedente prima della chiusura.
+            try:
+                signal.signal(
+                    signal.SIGTERM,
+                    previous_sigterm_handler
+                )
+            except Exception:
+                pass
+
             # ═══════════════════════════════════════════
             # Snapshot finale - FIX #2: CON TRAILING STATES
             # ═══════════════════════════════════════════
@@ -604,7 +753,8 @@ class AutonomousTradingBot:
                 capital=current_capital,
                 positions=self.risk_manager.positions,
                 trailing_states=trailing_states,  # ✅ FIX #2
-                daily_pnl=self.daily_pnl
+                daily_pnl=self.daily_pnl,
+                force=True
             )
             # ═══════════════════════════════════════════
             
@@ -620,6 +770,16 @@ class AutonomousTradingBot:
 
 
 if __name__ == "__main__":
+    lock_ok, lock_owner = _acquire_singleton_lock()
+
+    if not lock_ok:
+        print(
+            f"❌ V37 già attivo: singleton lock occupato "
+            f"(PID proprietario: {lock_owner})",
+            file=sys.stderr
+        )
+        raise SystemExit(1)
+
     bot = AutonomousTradingBot(
         initial_capital=202.62,
         symbols=['BTC/USDT', 'ETH/USDT', 'SOL/USDT']
