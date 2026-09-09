@@ -19,6 +19,100 @@ MIN_ONLINE_DURATION=120
 CHECK_INTERVAL=30
 
 
+
+MONITOR_NAME="connection"
+MONITOR_SCRIPT="$(readlink -f "$0")"
+MONITOR_LOCK_DIR="/tmp/quantum_v37_${MONITOR_NAME}_${UID}.lock"
+MONITOR_PID_FILE="$MONITOR_LOCK_DIR/pid"
+
+
+is_same_monitor_pid() {
+    local pid="$1"
+    local arg
+    local proc_cwd
+    local resolved
+
+    [[ "$pid" =~ ^[0-9]+$ ]] || return 1
+    [ -d "/proc/$pid" ] || return 1
+
+    proc_cwd=$(readlink -f "/proc/$pid/cwd" 2>/dev/null) || return 1
+
+    while IFS= read -r -d '' arg; do
+        if [ "$arg" = "$MONITOR_SCRIPT" ]; then
+            return 0
+        fi
+
+        case "$arg" in
+            /*)
+                resolved=$(readlink -f "$arg" 2>/dev/null || true)
+                ;;
+            */*)
+                resolved=$(readlink -f "$proc_cwd/$arg" 2>/dev/null || true)
+                ;;
+            *)
+                resolved=""
+                ;;
+        esac
+
+        if [ -n "$resolved" ] && [ "$resolved" = "$MONITOR_SCRIPT" ]; then
+            return 0
+        fi
+    done < "/proc/$pid/cmdline"
+
+    return 1
+}
+
+
+cleanup_monitor_singleton() {
+    local recorded=""
+
+    if [ -f "$MONITOR_PID_FILE" ]; then
+        recorded=$(tr -d '[:space:]' < "$MONITOR_PID_FILE")
+    fi
+
+    if [ "$recorded" = "$$" ]; then
+        rm -rf "$MONITOR_LOCK_DIR"
+    fi
+}
+
+
+handle_monitor_signal() {
+    cleanup_monitor_singleton
+    exit 0
+}
+
+
+acquire_monitor_singleton() {
+    local old_pid=""
+
+    if ! mkdir "$MONITOR_LOCK_DIR" 2>/dev/null; then
+        if [ -f "$MONITOR_PID_FILE" ]; then
+            old_pid=$(tr -d '[:space:]' < "$MONITOR_PID_FILE")
+        fi
+
+        if is_same_monitor_pid "$old_pid"; then
+            echo "❌ ${MONITOR_NAME} già attivo (PID $old_pid)" >&2
+            return 1
+        fi
+
+        # Lock stale: il PID non appartiene più a questo monitor.
+        rm -rf "$MONITOR_LOCK_DIR"
+
+        if ! mkdir "$MONITOR_LOCK_DIR" 2>/dev/null; then
+            echo "❌ impossibile acquisire lock ${MONITOR_NAME}" >&2
+            return 1
+        fi
+    fi
+
+    printf '%s\n' "$$" > "$MONITOR_PID_FILE"
+
+    trap cleanup_monitor_singleton EXIT
+    trap handle_monitor_signal INT TERM HUP
+
+    return 0
+}
+
+
 log_msg() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" >> "$LOG_FILE"
 }
@@ -122,6 +216,10 @@ check_once() {
 if [ "${1:-}" = "--check-once" ]; then
     check_once
     exit $?
+fi
+
+if ! acquire_monitor_singleton; then
+    exit 1
 fi
 
 
