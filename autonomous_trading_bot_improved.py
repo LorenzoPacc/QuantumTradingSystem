@@ -166,7 +166,7 @@ class AutonomousTradingBot:
             if self.TELEGRAM_ENABLED:
                 self.notifier.send_message(
                     "🤖 <b>Trading Bot V37 Avviato</b>\n"
-                    f"💰 Capitale: ${initial_capital}\n"
+                    f"💰 Capitale: ${self.risk_manager.current_capital:.2f}\n"
                     f"📊 Simboli: {len(symbols or ['BTC/USDT', 'ETH/USDT', 'SOL/USDT'])}\n"
                     "✅ Improvements attivi\n"
                     "✅ Monitoring attivo..."
@@ -188,7 +188,7 @@ class AutonomousTradingBot:
         self.logger = self._setup_logger()
 
         print("🤖 Autonomous Trading Bot V37 Initialized (FIXED)")
-        print(f"   Capital: ${initial_capital}")
+        print(f"   Capital: ${self.risk_manager.current_capital:.2f}")
         print(f"   Universe: {', '.join(self.symbols)}")
         print(f"   Telegram: {'✅ Enabled' if self.TELEGRAM_ENABLED else '❌ Disabled'}")
         print(f"   Improvements: ✅ Active (all fixes applied)")
@@ -219,8 +219,8 @@ class AutonomousTradingBot:
         Single trading cycle - con improvements e fix
         """
         self.cycle_count += 1
-        self._send_health_check()
         self._reset_daily_pnl_if_needed()
+        self._send_health_check()
         cycle_start = time.time()
 
         self.logger.info("\n" + "="*80)
@@ -538,16 +538,33 @@ class AutonomousTradingBot:
                             if self.TELEGRAM_ENABLED and self.notifier:
                                 tp = signal.get('take_profit', 0)
                                 sl = signal.get('stop_loss', 0)
-                                tp_pct = ((tp - signal['entry']) / signal['entry'] * 100) if tp else 0
-                                sl_pct = ((sl - signal['entry']) / signal['entry'] * 100) if sl else 0
+                                entry = signal['entry']
+                                direction = str(
+                                    signal.get('signal', 'BUY')
+                                ).upper()
+
+                                if direction == 'SELL':
+                                    tp_pct = (
+                                        (entry - tp) / entry * 100
+                                    ) if tp else 0
+                                    sl_pct = (
+                                        (entry - sl) / entry * 100
+                                    ) if sl else 0
+                                else:
+                                    tp_pct = (
+                                        (tp - entry) / entry * 100
+                                    ) if tp else 0
+                                    sl_pct = (
+                                        (sl - entry) / entry * 100
+                                    ) if sl else 0
                                 
                                 self.notifier.send_message(
                                     "🟢 <b>POSIZIONE APERTA</b>\n"
                                     f"📊 Asset: {symbol}\n"
                                     f"🎯 Direzione: <b>{signal['signal']}</b>\n"
                                     f"💵 Entry: ${signal['entry']:.2f}\n"
-                                    f"🎯 Target: ${tp:.2f} (+{tp_pct:.1f}%)\n"
-                                    f"🛑 Stop: ${sl:.2f} ({sl_pct:.1f}%)\n"
+                                    f"🎯 Target: ${tp:.2f} ({tp_pct:+.1f}%)\n"
+                                    f"🛑 Stop: ${sl:.2f} ({sl_pct:+.1f}%)\n"
                                     f"📦 Size: {size:.4f}"
                                 )
                         else:
@@ -654,29 +671,35 @@ class AutonomousTradingBot:
             self.logger.info(f"🔄 Daily PnL reset: {today}")
 
     def _send_health_check(self):
-        """Health check Telegram ogni 24h (12 cicli x 2h)"""
+        """Health check Telegram periodico (12 cicli consecutivi)"""
         if not (self.TELEGRAM_ENABLED and self.notifier):
             return
         if self.cycle_count == 0 or self.cycle_count % 12 != 0:
             return
         metrics = self.risk_manager.get_portfolio_metrics()
         total = metrics.get('total_trades', 0)
-        wr = metrics.get('win_rate', 0)
+        capital = self.risk_manager.current_capital
+        initial_capital = self.risk_manager.initial_capital
+        portfolio_pnl_pct = (
+            (capital - initial_capital) / initial_capital * 100
+        ) if initial_capital > 0 else 0
         pos_list = ''.join(
             f"  • {sym} @ ${pos['entry']:.2f}\n"
             for sym, pos in self.risk_manager.positions.items()
         ) or '  Nessuna'
         self.notifier.send_message(
-            f"📊 <b>HEALTH CHECK 24H</b>\n"
+            f"📊 <b>HEALTH CHECK PERIODICO</b>\n"
             f"━━━━━━━━━━━━━━━━━━\n"
-            f"💰 Capital: <b>${metrics['capital']:.2f}</b>\n"
-            f"📈 PnL: <b>{metrics['total_pnl_pct']:+.2f}%</b>\n"
+            f"💰 Capital: <b>${capital:.2f}</b>\n"
+            f"📈 Portfolio PnL: <b>{portfolio_pnl_pct:+.2f}%</b>\n"
+            f"📅 Daily PnL: <b>${self.daily_pnl:+.2f}</b>\n"
             f"🔄 Cicli: {self.cycle_count}\n"
-            f"💼 Trade: {total} | WR: {wr:.0f}%\n"
+            f"💼 Trade registrati: {total}\n"
+            f"ℹ️ WR storico omesso: ledger legacy contaminato\n"
             f"📌 Posizioni:\n{pos_list}\n"
             f"✅ Sistema operativo"
         )
-        self.logger.info('📊 Health check 24h inviato')
+        self.logger.info('📊 Health check periodico inviato')
 
     def start(self):
         """
