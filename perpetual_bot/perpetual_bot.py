@@ -349,81 +349,102 @@ class PerpetualBot:
                         continue
     
     def close_position(self, symbol, exit_price, reason):
-        """Close position and record trade"""
+        """Chiude una posizione con commit transazionale dello stato."""
         position = self.positions[symbol]
-        
+
         direction = position['direction']
         entry = position['entry_price']
-        
+
         if direction == 'LONG':
             pnl_pct = (exit_price - entry) / entry
             pnl_usd = (exit_price - entry) * position['quantity']
         else:
             pnl_pct = (entry - exit_price) / entry
             pnl_usd = (entry - exit_price) * position['quantity']
-        
-        # Update capital
-        self.risk_manager.update_capital(self.risk_manager.current_capital + pnl_usd)
-        
-        # Record trade
-        is_win = pnl_usd > 0
-        self.risk_manager.record_trade(pnl_usd, is_win)
-        
+
+        # Costruisce tutto il nuovo stato senza modificare ancora la RAM.
+        exit_time = datetime.now()
+        new_capital = self.risk_manager.current_capital + pnl_usd
+
         trade = {
             'symbol': symbol,
             'direction': direction,
             'entry_price': entry,
             'exit_price': exit_price,
             'entry_time': position['entry_time'].isoformat(),
-            'exit_time': datetime.now().isoformat(),
+            'exit_time': exit_time.isoformat(),
             'quantity': position['quantity'],
             'pnl_usd': pnl_usd,
             'pnl_pct': pnl_pct,
-            'exit_reason': reason
+            'exit_reason': reason,
+            'final_capital': new_capital,
         }
-        
-        # Aggiungi capitale finale al trade
-        trade['final_capital'] = self.risk_manager.current_capital
-        
-        self.trades_history.append(trade)
-        
-        # SALVA TRADE SU FILE (con check duplicati)
-        # Verifica che non sia già salvato
-        existing_trades = self.persistence.load_trades()
-        is_duplicate = any(
-            t.get('entry_time') == trade['entry_time'] and 
-            t.get('exit_time') == trade['exit_time']
-            for t in existing_trades
-        )
-        
-        if not is_duplicate:
-            self.persistence.save_trade(trade)
-        else:
-            self.logger.info(f"      ⚠️ Duplicate trade detected, not saving")
-        
-        self.logger.info(f"      🔴 CLOSED {direction} ({reason})")
-        self.logger.info(f"         Exit: ${exit_price:.2f}")
-        print(f"         PnL: {pnl_pct*100:+.2f}% (${pnl_usd:+.2f})")
-        self.logger.info(f"         New Capital: ${self.risk_manager.current_capital:.2f}")
 
-        # Telegram notification CLOSE
-        if hasattr(self, 'notifier') and self.notifier and self.notifier.enabled:
+        new_positions = dict(self.positions)
+        del new_positions[symbol]
+
+        # WAL: positions + trades + capital vengono portati allo stesso
+        # stato finale. Se fallisce, l'eccezione risale e la RAM resta
+        # invariata.
+        committed_trades = self.persistence.commit_close_transaction(
+            new_positions,
+            trade,
+            new_capital,
+        )
+
+        # Solo DOPO il commit persistente aggiorna lo stato in memoria.
+        self.positions = new_positions
+        self.trades_history = committed_trades
+        self.risk_manager.current_capital = new_capital
+
+        # I contatori rischio sono ricostruibili dal ledger dei trade.
+        self.risk_manager.record_trade(
+            pnl_usd,
+            pnl_usd > 0,
+        )
+
+        self.logger.info(
+            f"      🔴 CLOSED {direction} ({reason})"
+        )
+        self.logger.info(
+            f"         Exit: ${exit_price:.2f}"
+        )
+        print(
+            f"         PnL: {pnl_pct*100:+.2f}% "
+            f"(${pnl_usd:+.2f})"
+        )
+        self.logger.info(
+            f"         New Capital: "
+            f"${self.risk_manager.current_capital:.2f}"
+        )
+
+        # Telegram viene dopo il commit: un problema Telegram non può
+        # compromettere lo stato trading.
+        if (
+            hasattr(self, 'notifier')
+            and self.notifier
+            and self.notifier.enabled
+        ):
             try:
                 pnl_emoji = "🟢" if pnl_usd > 0 else "🔴"
-                msg = f"{pnl_emoji} <b>PERPETUAL CLOSED</b>\n"
-                msg += f"{direction} {symbol}\n"
-                msg += f"PnL: ${pnl_usd:.2f} ({pnl_pct*100:.2f}%)\n"
-                msg += f"Reason: {reason}\n"
-                msg += f"Capital: ${self.risk_manager.current_capital:.2f}"
+
+                msg = (
+                    f"{pnl_emoji} <b>PERPETUAL CLOSED</b>\n"
+                    f"{direction} {symbol}\n"
+                    f"PnL: ${pnl_usd:.2f} "
+                    f"({pnl_pct*100:.2f}%)\n"
+                    f"Reason: {reason}\n"
+                    f"Capital: "
+                    f"${self.risk_manager.current_capital:.2f}"
+                )
+
                 self.notifier.send_message(msg)
+
             except Exception as e:
-                self.logger.warning(f"Telegram notification error: {e}")
-        
-        del self.positions[symbol]
-        
-        # AGGIORNA FILE POSITIONS (rimuovi posizione chiusa)
-        self.persistence.save_positions(self.positions)
-    
+                self.logger.warning(
+                    f"Telegram notification error: {e}"
+                )
+
     def run_cycle(self):
         # Reset trades_today se è un nuovo giorno
         today = date.today()
