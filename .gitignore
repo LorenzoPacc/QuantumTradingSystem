@@ -79,3 +79,9 @@ mega_backup_*/
 # Old Python environments
 quantum_env/
 **/quantum_env/
+
+# B25c - Runtime locks / local working backups
+*.lock
+*.bak
+*.bak_*
+*.telegram_integration
