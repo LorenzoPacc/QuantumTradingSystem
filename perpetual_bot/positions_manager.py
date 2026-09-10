@@ -6,6 +6,12 @@ import json
 import os
 from datetime import datetime
 
+
+class StatePersistenceError(RuntimeError):
+    """Stato persistito assente, corrotto o strutturalmente non valido."""
+    pass
+
+
 class PositionsPersistence:
     """Gestisce salvataggio posizioni e trade"""
     
@@ -16,12 +22,31 @@ class PositionsPersistence:
         
         # Crea directory se non esiste
         os.makedirs(data_dir, exist_ok=True)
-        
-        # Inizializza files se non esistono
-        if not os.path.exists(self.positions_file):
+
+        positions_exists = os.path.exists(self.positions_file)
+        trades_exists = os.path.exists(self.trades_file)
+        capital_exists = os.path.exists(
+            os.path.join(data_dir, "capital.json")
+        )
+
+        # Stato parziale = situazione ambigua e potenzialmente pericolosa.
+        if positions_exists != trades_exists:
+            raise StatePersistenceError(
+                "Partial Perpetual state: positions.json and trades.json "
+                "must either both exist or both be absent"
+            )
+
+        # Se esiste capitale precedente, l'assenza simultanea dei due ledger
+        # NON può essere interpretata come fresh install.
+        if not positions_exists and not trades_exists and capital_exists:
+            raise StatePersistenceError(
+                "positions.json and trades.json are both missing while "
+                "capital.json exists"
+            )
+
+        # Fresh install reale: nessuno stato persistito esistente.
+        if not positions_exists and not trades_exists:
             self._save_json(self.positions_file, {})
-        
-        if not os.path.exists(self.trades_file):
             self._save_json(self.trades_file, [])
     
     def save_positions(self, positions):
@@ -62,7 +87,7 @@ class PositionsPersistence:
         Carica posizioni salvate
         Returns: dict con posizioni
         """
-        data = self._load_json(self.positions_file)
+        data = self._load_json(self.positions_file, dict)
         
         if not data:
             return {}
@@ -79,7 +104,7 @@ class PositionsPersistence:
         """
         Salva trade completato (come V37)
         """
-        trades = self._load_json(self.trades_file)
+        trades = self._load_json(self.trades_file, list)
         
         # Aggiungi nuovo trade
         trades.append(trade)
@@ -89,7 +114,7 @@ class PositionsPersistence:
     
     def load_trades(self):
         """Carica tutti i trade"""
-        return self._load_json(self.trades_file)
+        return self._load_json(self.trades_file, list)
     
     def get_trade_count(self):
         """Conta trade totali"""
@@ -138,13 +163,35 @@ class PositionsPersistence:
                 pass
             raise
     
-    def _load_json(self, filename):
-        """Helper per caricare JSON"""
+    def _load_json(self, filename, expected_type):
+        """Carica JSON fallendo esplicitamente su assenza/corruzione/schema errato."""
         try:
             with open(filename) as f:
-                return json.load(f)
-        except (FileNotFoundError, json.JSONDecodeError):
-            return {} if 'positions' in filename else []
+                data = json.load(f)
+
+        except FileNotFoundError as exc:
+            raise StatePersistenceError(
+                f"Required state file missing: {filename}"
+            ) from exc
+
+        except json.JSONDecodeError as exc:
+            raise StatePersistenceError(
+                f"Invalid JSON state file: {filename}: {exc}"
+            ) from exc
+
+        except OSError as exc:
+            raise StatePersistenceError(
+                f"Unable to read state file: {filename}: {exc}"
+            ) from exc
+
+        if not isinstance(data, expected_type):
+            raise StatePersistenceError(
+                f"Invalid state type for {filename}: "
+                f"expected {expected_type.__name__}, "
+                f"got {type(data).__name__}"
+            )
+
+        return data
 
 if __name__ == "__main__":
     # Test

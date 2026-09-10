@@ -2,6 +2,7 @@
 Risk Manager for Perpetual Bot
 """
 import json
+import math
 import os
 from datetime import datetime, timedelta
 
@@ -190,14 +191,44 @@ class RiskManager:
         self.daily_trades = 0
     
     def _load_capital(self):
+        # Assenza è ammessa: su una fresh install si parte dal capitale config.
+        if not os.path.exists(self.capital_file):
+            return self.config['capital']['initial']
+
         try:
-            if os.path.exists(self.capital_file):
-                with open(self.capital_file) as f:
-                    data = json.load(f)
-                    return data.get('capital', self.config['capital']['initial'])
-        except Exception:
-            pass
-        return self.config['capital']['initial']
+            with open(self.capital_file) as f:
+                data = json.load(f)
+
+        except json.JSONDecodeError as exc:
+            raise RuntimeError(
+                f"Invalid capital state JSON: {self.capital_file}: {exc}"
+            ) from exc
+
+        except OSError as exc:
+            raise RuntimeError(
+                f"Unable to read capital state: {self.capital_file}: {exc}"
+            ) from exc
+
+        if not isinstance(data, dict):
+            raise RuntimeError(
+                f"Invalid capital state type: expected dict, "
+                f"got {type(data).__name__}"
+            )
+
+        if 'capital' not in data:
+            raise RuntimeError("capital.json missing required 'capital' field")
+
+        try:
+            capital = float(data['capital'])
+        except (TypeError, ValueError) as exc:
+            raise RuntimeError("Invalid capital value in capital.json") from exc
+
+        if not math.isfinite(capital) or capital <= 0:
+            raise RuntimeError(
+                f"Invalid capital value in capital.json: {capital}"
+            )
+
+        return capital
 
     def _save_capital(self):
         try:
