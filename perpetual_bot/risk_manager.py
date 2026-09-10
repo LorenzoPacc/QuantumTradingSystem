@@ -119,6 +119,71 @@ class RiskManager:
                 self.cooldown_until = datetime.now() + timedelta(hours=cooldown_hours)
                 print(f"⚠️ COOLDOWN ACTIVATED: {cooldown_hours}h after {max_consec} consecutive losses")
     
+    def restore_from_trades(self, trades):
+        """Ricostruisce lo stato rischio volatile dai trade persistiti."""
+        now = datetime.now()
+        today = now.date()
+
+        self.daily_pnl = 0
+        self.daily_trades = 0
+        self.consecutive_losses = 0
+        self.last_trade_time = None
+        self.cooldown_until = None
+
+        if not trades:
+            return
+
+        # Stato giornaliero dai trade chiusi oggi.
+        for trade in trades:
+            try:
+                exit_time = datetime.fromisoformat(trade["exit_time"])
+                pnl = float(trade.get("pnl_usd", 0))
+            except (KeyError, TypeError, ValueError):
+                continue
+
+            if exit_time.date() == today:
+                self.daily_trades += 1
+                self.daily_pnl += pnl
+
+        # Ultimo trade valido.
+        last_valid = None
+        for trade in reversed(trades):
+            try:
+                exit_time = datetime.fromisoformat(trade["exit_time"])
+                pnl = float(trade["pnl_usd"])
+                last_valid = (exit_time, pnl)
+                break
+            except (KeyError, TypeError, ValueError):
+                continue
+
+        if last_valid:
+            self.last_trade_time = last_valid[0]
+
+        # Streak finale di perdite.
+        for trade in reversed(trades):
+            try:
+                pnl = float(trade["pnl_usd"])
+            except (KeyError, TypeError, ValueError):
+                continue
+
+            if pnl < 0:
+                self.consecutive_losses += 1
+            else:
+                break
+
+        # Ricostruisce un eventuale cooldown ancora attivo.
+        max_consec = self.config["limits"]["max_consecutive_losses"]
+
+        if (
+            self.last_trade_time
+            and self.consecutive_losses >= max_consec
+        ):
+            cooldown_hours = self.config["limits"]["cooldown_hours"]
+            candidate = self.last_trade_time + timedelta(hours=cooldown_hours)
+
+            if candidate > now:
+                self.cooldown_until = candidate
+
     def reset_daily_stats(self):
         """Reset daily counters (call at start of new day)"""
         self.daily_pnl = 0

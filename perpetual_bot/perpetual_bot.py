@@ -66,6 +66,10 @@ class PerpetualBot:
         # State
         self.positions = self.persistence.load_positions()  # Carica da file!
         self.trades_history = self.persistence.load_trades()
+
+        # Ripristina i contatori di rischio persi da un restart.
+        self.risk_manager.restore_from_trades(self.trades_history)
+
         self.cycle_count = 0
         
         # Recupera capitale dall'ultimo trade
