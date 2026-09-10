@@ -256,98 +256,210 @@ class PerpetualBot:
                 self.logger.warning(f"Telegram send error: {e}")
     
     def manage_positions(self):
-        """Check and manage open positions"""
+        """Check and manage open positions."""
         if not self.positions:
             return
-        
-        self.logger.info(f"📊 Managing {len(self.positions)} position(s)...")
-        
+
+        self.logger.info(
+            f"📊 Managing {len(self.positions)} position(s)..."
+        )
+
         for symbol in list(self.positions.keys()):
             position = self.positions[symbol]
-            
+
             # Get current price
             try:
                 ticker = self.exchange.fetch_ticker(symbol)
                 current_price = ticker.get('last')
+
                 if not current_price or current_price <= 0:
-                    self.logger.error(f"🚨 Prezzo invalido per {symbol}: {current_price} - skip")
+                    self.logger.error(
+                        f"🚨 Prezzo invalido per {symbol}: "
+                        f"{current_price} - skip"
+                    )
                     continue
+
             except Exception as e:
-                self.logger.error(f"❌ Errore fetch_ticker per {symbol}: {e}")
+                self.logger.error(
+                    f"❌ Errore fetch_ticker per {symbol}: {e}"
+                )
                 continue
-            
+
             # Calculate PnL
             direction = position['direction']
             entry = position['entry_price']
-            
+
             if direction == 'LONG':
                 pnl_pct = (current_price - entry) / entry
-                pnl_usd = (current_price - entry) * position['quantity']
+                pnl_usd = (
+                    (current_price - entry)
+                    * position['quantity']
+                )
             else:
                 pnl_pct = (entry - current_price) / entry
-                pnl_usd = (entry - current_price) * position['quantity']
-            
+                pnl_usd = (
+                    (entry - current_price)
+                    * position['quantity']
+                )
+
             self.logger.info(f"   {symbol} {direction}:")
-            self.logger.info(f"      Entry: ${entry:.2f} → Current: ${current_price:.2f}")
-            self.logger.info(f"      PnL: {pnl_pct*100:+.2f}% (${pnl_usd:+.2f})")
-            
+            self.logger.info(
+                f"      Entry: ${entry:.2f} "
+                f"→ Current: ${current_price:.2f}"
+            )
+            self.logger.info(
+                f"      PnL: {pnl_pct*100:+.2f}% "
+                f"(${pnl_usd:+.2f})"
+            )
+
             # Check stop loss
             if direction == 'LONG':
                 if current_price <= position['stop_loss']:
-                    self.close_position(symbol, current_price, 'STOP_LOSS')
+                    self.close_position(
+                        symbol,
+                        current_price,
+                        'STOP_LOSS'
+                    )
                     continue
             else:
                 if current_price >= position['stop_loss']:
-                    self.close_position(symbol, current_price, 'STOP_LOSS')
+                    self.close_position(
+                        symbol,
+                        current_price,
+                        'STOP_LOSS'
+                    )
                     continue
-            
+
             # Check take profit
             if direction == 'LONG':
                 if current_price >= position['take_profit']:
-                    self.close_position(symbol, current_price, 'TAKE_PROFIT')
+                    self.close_position(
+                        symbol,
+                        current_price,
+                        'TAKE_PROFIT'
+                    )
                     continue
             else:
                 if current_price <= position['take_profit']:
-                    self.close_position(symbol, current_price, 'TAKE_PROFIT')
+                    self.close_position(
+                        symbol,
+                        current_price,
+                        'TAKE_PROFIT'
+                    )
                     continue
-            
-            # Update trailing stop
+
+            # Trailing stop.
+            #
+            # Ogni modifica significativa viene persistita
+            # immediatamente. In caso di errore la persistenza
+            # atomica propaga StatePersistenceError.
             trailing = position['trailing_stop']
+            trailing_changed = False
+
             if not trailing['active']:
                 # Check activation
                 if direction == 'LONG':
-                    if current_price >= trailing['activation_price']:
+                    if (
+                        current_price
+                        >= trailing['activation_price']
+                    ):
                         trailing['active'] = True
-                        trailing['current_stop'] = current_price * (1 - trailing['trail_distance_pct'])
-                        self.logger.info(f"      ✅ Trailing stop ACTIVATED at ${trailing['current_stop']:.2f}")
+                        trailing['current_stop'] = (
+                            current_price
+                            * (
+                                1
+                                - trailing['trail_distance_pct']
+                            )
+                        )
+                        trailing_changed = True
+
+                        self.logger.info(
+                            "      ✅ Trailing stop ACTIVATED "
+                            f"at ${trailing['current_stop']:.2f}"
+                        )
+
                 else:
-                    if current_price <= trailing['activation_price']:
+                    if (
+                        current_price
+                        <= trailing['activation_price']
+                    ):
                         trailing['active'] = True
-                        trailing['current_stop'] = current_price * (1 + trailing['trail_distance_pct'])
-                        self.logger.info(f"      ✅ Trailing stop ACTIVATED at ${trailing['current_stop']:.2f}")
+                        trailing['current_stop'] = (
+                            current_price
+                            * (
+                                1
+                                + trailing['trail_distance_pct']
+                            )
+                        )
+                        trailing_changed = True
+
+                        self.logger.info(
+                            "      ✅ Trailing stop ACTIVATED "
+                            f"at ${trailing['current_stop']:.2f}"
+                        )
+
             else:
                 # Update trailing stop
                 if direction == 'LONG':
-                    new_stop = current_price * (1 - trailing['trail_distance_pct'])
+                    new_stop = (
+                        current_price
+                        * (
+                            1
+                            - trailing['trail_distance_pct']
+                        )
+                    )
+
                     if new_stop > trailing['current_stop']:
                         trailing['current_stop'] = new_stop
-                        self.logger.info(f"      📈 Trailing stop moved to ${new_stop:.2f}")
-                    
+                        trailing_changed = True
+
+                        self.logger.info(
+                            f"      📈 Trailing stop moved "
+                            f"to ${new_stop:.2f}"
+                        )
+
                     # Check if hit
                     if current_price <= trailing['current_stop']:
-                        self.close_position(symbol, current_price, 'TRAILING_STOP')
+                        self.close_position(
+                            symbol,
+                            current_price,
+                            'TRAILING_STOP'
+                        )
                         continue
+
                 else:
-                    new_stop = current_price * (1 + trailing['trail_distance_pct'])
+                    new_stop = (
+                        current_price
+                        * (
+                            1
+                            + trailing['trail_distance_pct']
+                        )
+                    )
+
                     if new_stop < trailing['current_stop']:
                         trailing['current_stop'] = new_stop
-                        self.logger.info(f"      📉 Trailing stop moved to ${new_stop:.2f}")
-                    
+                        trailing_changed = True
+
+                        self.logger.info(
+                            f"      📉 Trailing stop moved "
+                            f"to ${new_stop:.2f}"
+                        )
+
                     # Check if hit
                     if current_price >= trailing['current_stop']:
-                        self.close_position(symbol, current_price, 'TRAILING_STOP')
+                        self.close_position(
+                            symbol,
+                            current_price,
+                            'TRAILING_STOP'
+                        )
                         continue
-    
+
+            # Persist trailing activation/movement while the
+            # position remains open. Close operations are already
+            # persisted transactionally by close_position().
+            if trailing_changed:
+                self.persistence.save_positions(self.positions)
+
     def close_position(self, symbol, exit_price, reason):
         """Chiude una posizione con commit transazionale dello stato."""
         position = self.positions[symbol]
