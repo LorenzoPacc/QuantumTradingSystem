@@ -12,6 +12,10 @@ WATCHDOG_SCRIPT="$BOT_DIR/ops/bot_watchdog.sh"
 CONNECTION_SCRIPT="$BOT_DIR/ops/connection_monitor.sh"
 HEALTH_SCRIPT="$BOT_DIR/ops/bot_health_check.sh"
 
+WATCHDOG_PID_FILE="/tmp/quantum_v37_watchdog_${UID}.lock/pid"
+CONNECTION_PID_FILE="/tmp/quantum_v37_connection_${UID}.lock/pid"
+HEALTH_PID_FILE="/tmp/quantum_v37_health_${UID}.lock/pid"
+
 # ─────────────────────────────────────────────
 # FUNZIONI CORE
 # ─────────────────────────────────────────────
@@ -168,25 +172,176 @@ stop_bot() {
     fi
 }
 
+is_expected_monitor_pid() {
+    local pid="$1"
+    local script="$2"
+    local expected_script
+    local proc_cwd
+    local arg
+    local resolved
+
+    [[ "$pid" =~ ^[0-9]+$ ]] || return 1
+    [ -d "/proc/$pid" ] || return 1
+
+    expected_script=$(readlink -f "$script") || return 1
+    proc_cwd=$(readlink -f "/proc/$pid/cwd" 2>/dev/null) || return 1
+
+    while IFS= read -r -d '' arg; do
+        if [ "$arg" = "$expected_script" ]; then
+            return 0
+        fi
+
+        case "$arg" in
+            /*)
+                resolved=$(readlink -f "$arg" 2>/dev/null || true)
+                ;;
+            */*)
+                resolved=$(readlink -f "$proc_cwd/$arg" 2>/dev/null || true)
+                ;;
+            *)
+                resolved=""
+                ;;
+        esac
+
+        if [ -n "$resolved" ] && [ "$resolved" = "$expected_script" ]; then
+            return 0
+        fi
+    done < "/proc/$pid/cmdline"
+
+    return 1
+}
+
+
+get_monitor_pid() {
+    local script="$1"
+    local pid_file="$2"
+    local pid=""
+
+    [ -f "$pid_file" ] || return 1
+
+    pid=$(tr -d '[:space:]' < "$pid_file")
+
+    if is_expected_monitor_pid "$pid" "$script"; then
+        echo "$pid"
+        return 0
+    fi
+
+    return 1
+}
+
+
+stop_monitor() {
+    local name="$1"
+    local script="$2"
+    local pid_file="$3"
+    local pid=""
+
+    if ! pid=$(get_monitor_pid "$script" "$pid_file"); then
+        echo "ℹ️  $name: non attivo o PID non valido"
+        return 0
+    fi
+
+    echo "🛑 $name PID $pid"
+
+    kill -TERM "$pid" 2>/dev/null || true
+
+    for _ in {1..10}; do
+        if ! is_expected_monitor_pid "$pid" "$script"; then
+            echo "✅ $name fermato"
+            return 0
+        fi
+        sleep 1
+    done
+
+    echo "❌ $name non si è fermato entro 10 secondi"
+    return 1
+}
+
+
+monitor_status() {
+    local name="$1"
+    local script="$2"
+    local pid_file="$3"
+    local pid=""
+
+    if pid=$(get_monitor_pid "$script" "$pid_file"); then
+        echo "✅ $name: RUNNING (PID $pid)"
+    else
+        echo "❌ $name: STOPPED"
+    fi
+}
+
+
+start_monitor() {
+    local name="$1"
+    local script="$2"
+    local pid_file="$3"
+    local log_file="$4"
+    local pid=""
+    local launched_pid=""
+
+    if pid=$(get_monitor_pid "$script" "$pid_file"); then
+        echo "✅ $name già attivo (PID $pid)"
+        return 0
+    fi
+
+    nohup "$script" > "$log_file" 2>&1 9>&- &
+    launched_pid=$!
+
+    for _ in {1..5}; do
+        if pid=$(get_monitor_pid "$script" "$pid_file"); then
+            if [ "$pid" = "$launched_pid" ]; then
+                echo "✅ $name avviato (PID $pid)"
+                return 0
+            fi
+
+            echo "⚠️  $name attivo con PID $pid, diverso dal processo lanciato $launched_pid"
+            return 1
+        fi
+
+        if ! ps -p "$launched_pid" > /dev/null 2>&1; then
+            echo "❌ $name non è riuscito ad avviarsi"
+            return 1
+        fi
+
+        sleep 1
+    done
+
+    echo "❌ $name non verificato dopo l'avvio"
+    return 1
+}
+
+
 start_monitors() {
-    mkdir -p ~/logs
+    local rc=0
 
-    nohup "$WATCHDOG_SCRIPT" > ~/logs/watchdog.log 2>&1 9>&- &
-    nohup "$CONNECTION_SCRIPT" > ~/logs/connection.log 2>&1 9>&- &
-    nohup "$HEALTH_SCRIPT" > ~/logs/health.log 2>&1 9>&- &
+    mkdir -p "$HOME/logs"
 
-    sleep 1
-    echo "✅ Watchdog started"
-    echo "✅ Connection monitor started"
-    echo "✅ Health check started"
+    start_monitor         "Watchdog"         "$WATCHDOG_SCRIPT"         "$WATCHDOG_PID_FILE"         "$HOME/logs/watchdog.log" || rc=1
+
+    start_monitor         "Connection monitor"         "$CONNECTION_SCRIPT"         "$CONNECTION_PID_FILE"         "$HOME/logs/connection.log" || rc=1
+
+    start_monitor         "Health check"         "$HEALTH_SCRIPT"         "$HEALTH_PID_FILE"         "$HOME/logs/health.log" || rc=1
+
+    return "$rc"
 }
 
 stop_monitors() {
-    pkill -f bot_watchdog.sh
-    pkill -f connection_monitor.sh
-    pkill -f bot_health_check.sh
-    sleep 1
-    echo "✅ All monitors stopped"
+    local rc=0
+
+    stop_monitor         "Watchdog"         "$WATCHDOG_SCRIPT"         "$WATCHDOG_PID_FILE" || rc=1
+
+    stop_monitor         "Connection monitor"         "$CONNECTION_SCRIPT"         "$CONNECTION_PID_FILE" || rc=1
+
+    stop_monitor         "Health check"         "$HEALTH_SCRIPT"         "$HEALTH_PID_FILE" || rc=1
+
+    if [ "$rc" -eq 0 ]; then
+        echo "✅ All monitors stopped"
+    else
+        echo "⚠️  Uno o più monitor non si sono fermati correttamente"
+    fi
+
+    return "$rc"
 }
 
 # ─────────────────────────────────────────────
@@ -250,26 +405,11 @@ case "$1" in
         echo "╚════════════════════════════════════════════╝"
         echo ""
 
-        # Watchdog
-        if pgrep -f bot_watchdog.sh > /dev/null; then
-            echo "✅ Watchdog: RUNNING"
-        else
-            echo "❌ Watchdog: STOPPED"
-        fi
+        monitor_status             "Watchdog"             "$WATCHDOG_SCRIPT"             "$WATCHDOG_PID_FILE"
 
-        # Connection Monitor
-        if pgrep -f connection_monitor.sh > /dev/null; then
-            echo "✅ Connection Monitor: RUNNING"
-        else
-            echo "❌ Connection Monitor: STOPPED"
-        fi
+        monitor_status             "Connection Monitor"             "$CONNECTION_SCRIPT"             "$CONNECTION_PID_FILE"
 
-        # Health Check
-        if pgrep -f bot_health_check.sh > /dev/null; then
-            echo "✅ Health Check: RUNNING"
-        else
-            echo "❌ Health Check: STOPPED"
-        fi
+        monitor_status             "Health Check"             "$HEALTH_SCRIPT"             "$HEALTH_PID_FILE"
 
         # Trading Bot
         mapfile -t ALL_BOT_PIDS < <(find_any_bot_pids)

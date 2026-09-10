@@ -76,9 +76,29 @@ cleanup_monitor_singleton() {
 }
 
 
+MONITOR_SLEEP_PID=""
+
+
 handle_monitor_signal() {
+    if [[ "$MONITOR_SLEEP_PID" =~ ^[0-9]+$ ]]; then
+        kill -TERM "$MONITOR_SLEEP_PID" 2>/dev/null || true
+        wait "$MONITOR_SLEEP_PID" 2>/dev/null || true
+    fi
+
     cleanup_monitor_singleton
     exit 0
+}
+
+
+monitor_sleep() {
+    MONITOR_SLEEP_PID=""
+
+    sleep "$1" &
+    MONITOR_SLEEP_PID=$!
+
+    wait "$MONITOR_SLEEP_PID" 2>/dev/null || true
+
+    MONITOR_SLEEP_PID=""
 }
 
 
@@ -314,5 +334,5 @@ while true; do
         fi
     fi
 
-    sleep "$CHECK_INTERVAL"
+    monitor_sleep "$CHECK_INTERVAL"
 done
