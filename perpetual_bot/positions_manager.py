@@ -108,9 +108,35 @@ class PositionsPersistence:
         return last_trade.get('final_capital')
     
     def _save_json(self, filename, data):
-        """Helper per salvare JSON"""
-        with open(filename, 'w') as f:
-            json.dump(data, f, indent=2)
+        """Salva JSON atomicamente: il file precedente resta valido fino al replace."""
+        directory = os.path.dirname(filename) or '.'
+        tmp_file = f"{filename}.tmp.{os.getpid()}"
+
+        try:
+            with open(tmp_file, 'w') as f:
+                json.dump(data, f, indent=2)
+                f.flush()
+                os.fsync(f.fileno())
+
+            os.replace(tmp_file, filename)
+
+            # Persisti anche il rename sul filesystem quando supportato.
+            try:
+                dir_fd = os.open(directory, os.O_RDONLY)
+                try:
+                    os.fsync(dir_fd)
+                finally:
+                    os.close(dir_fd)
+            except OSError:
+                pass
+
+        except Exception:
+            try:
+                if os.path.exists(tmp_file):
+                    os.unlink(tmp_file)
+            except OSError:
+                pass
+            raise
     
     def _load_json(self, filename):
         """Helper per caricare JSON"""
