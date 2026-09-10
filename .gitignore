@@ -63,3 +63,19 @@ quantum_env/
 # Python cache
 **/__pycache__/
 *.py[cod]
+
+# ============================================================
+# B25b - Legacy repositories / historical archives
+# ============================================================
+QuantumTradingSystem/
+LEGACY_SAFE/
+
+archived_old_versions/
+backup_20*/
+backup_pre_v31_*/
+cleanup_backup_*/
+mega_backup_*/
+
+# Old Python environments
+quantum_env/
+**/quantum_env/
