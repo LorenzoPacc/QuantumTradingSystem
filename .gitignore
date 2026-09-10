@@ -44,3 +44,22 @@ perpetual_bot/perpetual_data/
 snapshots/
 backups_safe/
 Trading_Journal_LIVE.xlsx
+
+# ============================================================
+# B25 - Secrets / environment files
+# ============================================================
+**/.env
+**/.env.*
+
+# Template pubblicabili
+!**/.env.example
+!**/.env.template
+!**/.env.testnet.template
+
+# Python virtual environments
+quantum_env/
+**/quantum_env/
+
+# Python cache
+**/__pycache__/
+*.py[cod]
