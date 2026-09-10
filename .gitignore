@@ -85,3 +85,5 @@ quantum_env/
 *.bak
 *.bak_*
 *.telegram_integration
+*_backup_*.py
+*_backup_*.json

@@ -38,7 +38,7 @@
   
   "entry": {
     "rsi_range": [45, 55],
-    "volume_multiplier": 1.2,
+    "volume_multiplier": 0.8,
     "min_atr": 0.008
   },
   
@@ -47,8 +47,8 @@
     "take_profit_pct": 0.07,
     "min_risk_reward": 1.5,
     "trailing_stop": {
-      "activation_pct": 0.04,
-      "trail_distance_pct": 0.02
+      "activation_pct": 0.02,
+      "trail_distance_pct": 0.015
     }
   },
   
