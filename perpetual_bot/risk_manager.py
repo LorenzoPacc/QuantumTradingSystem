@@ -230,19 +230,56 @@ class RiskManager:
 
         return capital
 
-    def _save_capital(self):
+    def _save_capital(self, capital):
+        """Salva il capitale atomicamente e fallisce esplicitamente se non riesce."""
+        directory = os.path.dirname(self.capital_file) or '.'
+        os.makedirs(directory, exist_ok=True)
+
+        tmp_file = f"{self.capital_file}.tmp.{os.getpid()}"
+
         try:
-            os.makedirs(os.path.dirname(self.capital_file), exist_ok=True)
-            tmp = self.capital_file + '.tmp'
-            with open(tmp, 'w') as f:
-                json.dump({'capital': self.current_capital, 'updated': datetime.now().isoformat()}, f)
-            os.replace(tmp, self.capital_file)
-        except Exception as e:
-            print(f'Warning: capital save failed: {e}')
+            with open(tmp_file, 'w') as f:
+                json.dump(
+                    {
+                        'capital': capital,
+                        'updated': datetime.now().isoformat()
+                    },
+                    f,
+                    allow_nan=False
+                )
+                f.flush()
+                os.fsync(f.fileno())
+
+            os.replace(tmp_file, self.capital_file)
+
+            dir_fd = os.open(directory, os.O_RDONLY)
+            try:
+                os.fsync(dir_fd)
+            finally:
+                os.close(dir_fd)
+
+        except Exception:
+            try:
+                if os.path.exists(tmp_file):
+                    os.unlink(tmp_file)
+            except OSError:
+                pass
+            raise
 
     def update_capital(self, new_capital):
-        self.current_capital = new_capital
-        self._save_capital()
+        """Aggiorna il capitale solo dopo averlo persistito correttamente."""
+        try:
+            capital = float(new_capital)
+        except (TypeError, ValueError) as exc:
+            raise RuntimeError("Invalid capital value") from exc
+
+        if not math.isfinite(capital) or capital <= 0:
+            raise RuntimeError(
+                f"Invalid capital value: {capital}"
+            )
+
+        self._save_capital(capital)
+        self.current_capital = capital
 
 if __name__ == "__main__":
     # Test risk manager

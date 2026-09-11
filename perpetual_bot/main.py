@@ -70,13 +70,17 @@ def main():
             # Interrompibile immediatamente da SIGTERM/SIGINT.
             stop_event.wait(cycle_interval)
 
-    finally:
+    except BaseException:
+        print("❌ Uscita per errore: nessun salvataggio finale dalla RAM")
+        raise
+    else:
         # Salvataggio finale delle posizioni con la persistenza atomica B26a.
         try:
             bot.persistence.save_positions(bot.positions)
             print("💾 Final positions saved")
         except Exception as e:
             print(f"⚠️ Final positions save failed: {e}")
+            raise
 
         print_final_stats(bot)
 

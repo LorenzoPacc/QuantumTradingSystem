@@ -133,15 +133,79 @@ class PositionsPersistence:
         return len(trades)
     
     def get_capital_from_trades(self):
-        """Recupera capitale dall'ultimo trade (come V37)"""
+        """Recupera capitale dall'ultimo trade (come V37)."""
         trades = self.load_trades()
-        
+
         if not trades:
             return None
-        
-        # Ultimo trade ha il capitale finale
+
         last_trade = trades[-1]
-        return last_trade.get('final_capital')
+
+        if not isinstance(last_trade, dict):
+            raise StatePersistenceError(
+                "Last trade entry is not a dict"
+            )
+
+        if 'final_capital' not in last_trade:
+            raise StatePersistenceError(
+                "Last trade missing required final_capital"
+            )
+
+        try:
+            capital = float(last_trade['final_capital'])
+        except (TypeError, ValueError) as exc:
+            raise StatePersistenceError(
+                "Invalid final_capital in last trade"
+            ) from exc
+
+        if not math.isfinite(capital) or capital <= 0:
+            raise StatePersistenceError(
+                f"Invalid final_capital in last trade: {capital}"
+            )
+
+        return capital
+
+    def validate_capital_consistency(self, capital, trades=None):
+        """Verifica che capital.json sia coerente con l'ultimo trade."""
+        if trades is None:
+            trades = self.load_trades()
+
+        if not trades:
+            return True
+
+        # Con trade già presenti, capital.json deve esistere.
+        if not os.path.exists(self.capital_file):
+            raise StatePersistenceError(
+                "capital.json missing while trade history exists"
+            )
+
+        try:
+            actual = float(capital)
+        except (TypeError, ValueError) as exc:
+            raise StatePersistenceError(
+                "Invalid loaded capital"
+            ) from exc
+
+        if not math.isfinite(actual) or actual <= 0:
+            raise StatePersistenceError(
+                f"Invalid loaded capital: {actual}"
+            )
+
+        expected = self.get_capital_from_trades()
+
+        if not math.isclose(
+            actual,
+            expected,
+            rel_tol=0.0,
+            abs_tol=1e-9
+        ):
+            raise StatePersistenceError(
+                "Capital mismatch: capital.json does not match "
+                "last trade final_capital "
+                f"(file={actual}, trade={expected})"
+            )
+
+        return True
     
     def _build_close_transaction(self, positions, trade, new_capital):
         """Costruisce lo stato finale completo di una chiusura."""
@@ -325,14 +389,11 @@ class PositionsPersistence:
                 f"unable to remove transaction journal: {exc}"
             ) from exc
 
+        dir_fd = os.open(self.data_dir, os.O_RDONLY)
         try:
-            dir_fd = os.open(self.data_dir, os.O_RDONLY)
-            try:
-                os.fsync(dir_fd)
-            finally:
-                os.close(dir_fd)
-        except OSError:
-            pass
+            os.fsync(dir_fd)
+        finally:
+            os.close(dir_fd)
 
     def _recover_pending_transaction(self):
         """Roll-forward di una transazione rimasta pendente."""
@@ -385,15 +446,11 @@ class PositionsPersistence:
 
             os.replace(tmp_file, filename)
 
-            # Persisti anche il rename sul filesystem quando supportato.
+            dir_fd = os.open(directory, os.O_RDONLY)
             try:
-                dir_fd = os.open(directory, os.O_RDONLY)
-                try:
-                    os.fsync(dir_fd)
-                finally:
-                    os.close(dir_fd)
-            except OSError:
-                pass
+                os.fsync(dir_fd)
+            finally:
+                os.close(dir_fd)
 
         except Exception:
             try:

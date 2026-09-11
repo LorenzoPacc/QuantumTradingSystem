@@ -3,6 +3,7 @@ Perpetual Bot V1 - Core Trading Engine
 """
 import ccxt
 import json
+import math
 import pandas as pd
 import time
 from datetime import datetime, date
@@ -40,6 +41,12 @@ class PerpetualBot:
         
         # Initialize components
         self.signal_generator = SignalGenerator(config_file)
+
+        # Persistence first:
+        # eventuale WAL pendente viene recuperato prima del caricamento
+        # del capitale e dello stato operativo.
+        self.persistence = PositionsPersistence()
+
         self.risk_manager = RiskManager(config_file)
         
         # Initialize exchange (paper trading mode)
@@ -48,8 +55,6 @@ class PerpetualBot:
             'options': {'defaultType': 'future'}
         })
         
-        # Persistence manager
-        self.persistence = PositionsPersistence()
         self.cost_calculator = CostCalculator(is_spot=False)  # Perpetual is FUTURES
 
         # Telegram notifier
@@ -72,11 +77,31 @@ class PerpetualBot:
 
         self.cycle_count = 0
         
-        # Recupera capitale dall'ultimo trade
+        # Verifica coerenza tra capital.json e ultimo trade.
+        # Non correggiamo automaticamente un mismatch:
+        # uno stato incoerente deve bloccare il bootstrap.
+        self.persistence.validate_capital_consistency(
+            self.risk_manager.current_capital,
+            self.trades_history,
+        )
+
         saved_capital = self.persistence.get_capital_from_trades()
-        if saved_capital:
-            self.risk_manager.update_capital(saved_capital)
-            print(f"   💰 Capital recovered: ${saved_capital:.2f}")
+
+        if saved_capital is not None:
+            if not math.isclose(
+                self.risk_manager.current_capital,
+                saved_capital,
+                rel_tol=0.0,
+                abs_tol=1e-9,
+            ):
+                raise RuntimeError(
+                    "Capital consistency check failed during bootstrap"
+                )
+
+            print(
+                f"   💰 Capital verified: "
+                f"${self.risk_manager.current_capital:.2f}"
+            )
         
         print(f"🤖 {self.config['bot_name']} Initialized")
         print(f"   Mode: {self.config['mode'].upper()}")
