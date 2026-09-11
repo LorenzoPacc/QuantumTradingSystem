@@ -157,20 +157,11 @@ stop_bot() {
         sleep 1
     done
 
-    # Force kill
-    echo "⚠️  Forcing shutdown..."
-    kill -KILL "$PID" 2>/dev/null
-    sleep 2
-
-    if ! ps -p "$PID" > /dev/null 2>&1; then
-        echo "✅ Trading bot stopped (forced)"
-        rm -f "$PID_FILE"
-        return 0
-    else
-        echo "❌ Failed to stop bot"
-        return 1
-    fi
+    echo "❌ Bot ancora presente dopo 10 secondi"
+    echo "⚠️ SIGKILL non inviato: verificare processo e log"
+    return 1
 }
+
 
 is_expected_monitor_pid() {
     local pid="$1"
@@ -355,7 +346,7 @@ case "$1" in
 
         start_bot
         if [ $? -eq 0 ]; then
-            start_monitors
+            start_monitors || exit 1
             echo ""
             echo "🎉 System active!"
         else
@@ -369,9 +360,9 @@ case "$1" in
         echo "🛑 Stopping Quantum Trading System..."
         echo ""
 
-        # ✅ FIX 2: Stop bot PRIMA dei monitor
-        stop_bot
-        stop_monitors
+        # Ferma prima i monitor; interrompi in caso di errore
+        stop_monitors || exit 1
+        stop_bot || exit 1
 
         echo ""
         echo "✅ System stopped"
@@ -381,15 +372,15 @@ case "$1" in
         echo "🔄 Restarting Quantum Trading System..."
         echo ""
 
-        # ✅ FIX 2: Ordine corretto
-        stop_bot
-        stop_monitors
+        # Ferma prima i monitor; interrompi in caso di errore
+        stop_monitors || exit 1
+        stop_bot || exit 1
 
         sleep 3
 
         start_bot
         if [ $? -eq 0 ]; then
-            start_monitors
+            start_monitors || exit 1
             echo ""
             echo "✅ System restarted"
         else
